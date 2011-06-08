@@ -18,10 +18,16 @@
         temp (comp emit* 
                    (let [nodes (map annotate (html-resource (str "views/" section "/" item ".html")))]
                      (fn [rc]
-                       (flatmap (fn [n] (loop [rules (partition 2 substitions) node-list (as-nodes n)] 
+                       (flatmap (fn subst [n] (loop [rules (partition 2 rule-base) node-list (as-nodes n)] 
                                           (if (nil? rules) node-list 
                                             (let [[[s t] & more] rules] 
-                                              (recur more (transform node-list s t)))))) 
+                                              (if (vector? t)
+                                                (do
+                                                  (println "transform-vector" t)
+                                                  (recur more (mapcat #(transform node-list s (content %)) t)))
+                                                (do
+                                                  (println "transform" t)
+                                                  (recur more (transform node-list s (content t))))))))) 
                                 nodes))))] 
     {:status 200
      :headers {"Content-Type" "text/html"}

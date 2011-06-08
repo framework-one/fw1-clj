@@ -6,3 +6,6 @@
 (defn default-view [rc]
   (list [:p#message] (:it rc) 
         [:p#foo] "bar bar black sheep"))
+
+(defn index-view [rc]
+  (list [:li.items] ["what" "when" "how"]))
