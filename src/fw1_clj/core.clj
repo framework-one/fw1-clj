@@ -10,16 +10,19 @@
         item (or (second (rest route)) "default")
         target (str "controllers." section "/" item)
         params (:params req)
-        res1 (resolve (symbol target))
-        rc (if res1 (res1 params) params)
-        res2 (resolve (symbol (str target "-view")))
-        sub (if res2 (res2 rc) [])
-        stuff (map #(%1 %2) (cycle [identity content]) sub)
-        _ (println "sub" sub "stuff" stuff)
+        controller (resolve (symbol target))
+        rc (if controller (controller params) params)
+        view-process (resolve (symbol (str target "-view")))
+        rule-base (if view-process (view-process rc) [])
+        substitions (map #(%1 %2) (cycle [identity content]) rule-base)
         temp (comp emit* 
                    (let [nodes (map annotate (html-resource (str "views/" section "/" item ".html")))]
                      (fn [rc]
-                       (flatmap (fn [n] (at n (first stuff) (second stuff))) nodes))))] 
+                       (flatmap (fn [n] (loop [rules (partition 2 substitions) node-list (as-nodes n)] 
+                                          (if (nil? rules) node-list 
+                                            (let [[[s t] & more] rules] 
+                                              (recur more (transform node-list s t)))))) 
+                                nodes))))] 
     {:status 200
      :headers {"Content-Type" "text/html"}
      :body (temp rc)}))
