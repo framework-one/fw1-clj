@@ -8,7 +8,9 @@
   (let [route (clojure.string/split (:uri req) #"/")
         section (or (first (rest route)) "main")
         item (or (second (rest route)) "default")
-        target (str "controllers." section "/" item)
+        controller-ns (str "controllers." section)
+        _ (require (symbol controller-ns))
+        target (str controller-ns "/" item)
         params (:params req)
         controller (resolve (symbol target))
         rc (if controller (controller params) params)
@@ -23,10 +25,10 @@
                                             (let [[[s t] & more] rules] 
                                               (if (vector? t)
                                                 (do
-                                                  (println "transform-vector" t)
+                                                  #_(println "transform-vector" t)
                                                   (recur more (mapcat #(transform node-list s (content %)) t)))
                                                 (do
-                                                  (println "transform" t)
+                                                  #_(println "transform" t)
                                                   (recur more (transform node-list s (content t))))))))) 
                                 nodes))))] 
     {:status 200
