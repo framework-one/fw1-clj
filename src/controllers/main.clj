@@ -9,8 +9,7 @@
 
 (defn default-view [nodes rc]
   (at nodes
-      [:p#message] (content (:it rc)) 
-      [:p#foo] (content "bar bar black sheep")))
+      [:p#message] (content (:it rc))))
 
 (defn index-view [nodes rc]
   (at nodes
