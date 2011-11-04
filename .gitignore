@@ -1,4 +1,7 @@
 pom.xml
+.classpath
+.settings
+.project
 *jar
 /bin/
 /lib/
