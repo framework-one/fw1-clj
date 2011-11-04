@@ -1,4 +1,4 @@
-(ns fw1-clj.core
+(ns framework.one
   (:use [ring.adapter.jetty])
   (:use [ring.middleware.reload])
   (:use [ring.middleware.params])

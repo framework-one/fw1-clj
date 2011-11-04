@@ -1,5 +1,5 @@
-(ns fw1-clj.test.core
-  (:use [fw1-clj.core])
+(ns framework.test.one
+  (:use [framework.one])
   (:use [clojure.test]))
 
 (deftest replace-me ;; FIXME: write
