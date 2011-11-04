@@ -1,11 +1,19 @@
-(ns controllers.main)
+(ns controllers.main
+  (:use net.cgrand.enlive-html))
+
+(defn index [rc]
+  (assoc rc :rationale ["what" "when" "how"]))
 
 (defn default [rc]
   (assoc rc :it "main.default controller called"))
 
-(defn default-view [rc]
-  (list [:p#message] (:it rc) 
-        [:p#foo] "bar bar black sheep"))
+(defn default-view [nodes rc]
+  (at nodes
+      [:p#message] (content (:it rc)) 
+      [:p#foo] (content "bar bar black sheep")))
 
-(defn index-view [rc]
-  (list [:li.items] ["what" "when" "how"]))
+(defn index-view [nodes rc]
+  (at nodes
+      [:li.items]
+      (clone-for [item (:rationale rc)]
+                 (content item))))
