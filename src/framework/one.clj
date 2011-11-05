@@ -1,8 +1,11 @@
 (ns framework.one
-  (:use [ring.adapter.jetty])
-  (:use [ring.middleware.reload])
-  (:use [ring.middleware.params])
-  (:use [net.cgrand.enlive-html]))
+  (:require [ring.middleware.params :as ring-p])
+  (:require [net.cgrand.enlive-html :as html]))
+
+;; Enlive bridge
+(intern *ns* (with-meta 'at (meta #'html/at)) @#'html/at)
+(intern *ns* (with-meta 'clone-for (meta #'html/clone-for)) @#'html/clone-for)
+(intern *ns* (with-meta 'content (meta #'html/content)) @#'html/content)
 
 (defn app-base [req]
   (let [route (clojure.string/split (:uri req) #"/")
@@ -15,10 +18,11 @@
         controller (resolve (symbol target))
         rc (if controller (controller params) params)
         view-process (resolve (symbol (str target "-view")))
-        view-nodes (html-resource (str "views/" section "/" item ".html"))
-        view-render (when view-process
-                      (view-process view-nodes rc))
-        view-html (apply str (emit* view-render))]
+        view-nodes (html/html-resource (str "views/" section "/" item ".html"))
+        view-render (if view-process
+                      (view-process view-nodes rc)
+                      view-nodes)
+        view-html (apply str (html/emit* view-render))]
     {:status 200
      :headers {"Content-Type" "text/html"}
      :body view-html}))
@@ -28,4 +32,4 @@
     {:status 200
      :headers {"Content-Type" "text/html"}
      :body "favicon.ico not found"}
-    ((wrap-params app-base) req)))
+    ((ring-p/wrap-params app-base) req)))
