@@ -5,4 +5,8 @@
 
 (defn -main[]
   (let [port (Integer/parseInt (get (System/getenv) "PORT" "8080"))] 
-    (run-jetty (wrap-reload (var fw1/app) '(framework.one)) {:port port})))
+    (run-jetty
+     (wrap-reload
+      (fw1/start :reload-application-on-every-request true)
+      '(framework.one))
+     {:port port})))
