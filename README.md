@@ -14,3 +14,5 @@ lein run -m fw1-test.core
 You can specify a different port like this:
 
 PORT=8111 lein run -m fw1-test.core
+
+In fw1-test.core, the call to (fw1/start) can be passed any sequence of configuration parameters.
