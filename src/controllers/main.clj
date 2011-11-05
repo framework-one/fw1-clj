@@ -17,4 +17,6 @@
   (at nodes
       [:li.items]
       (clone-for [item (:rationale rc)]
-                 (content item))))
+                 (content item))
+      [:#rc]
+      (content (pr-str rc))))
