@@ -74,7 +74,7 @@
         view-nodes (get-view-nodes section item)
         view-process (resolve (symbol (str controller-ns "/" item "-view")))
         view-render (if view-process
-                      (view-process view-nodes rc)
+                      (view-process rc view-nodes)
                       view-nodes)
         layouts (get-layout-nodes controller-ns section item)
         view-render (reduce (partial apply-layout rc) view-render layouts)

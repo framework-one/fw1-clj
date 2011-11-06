@@ -9,11 +9,11 @@
   (assoc rc :it "main.default controller called"))
 
 ;; view methods
-(defn default-view [nodes rc]
+(defn default-view [rc nodes]
   (at nodes
       [:p#message] (content (:it rc))))
 
-(defn index-view [nodes rc]
+(defn index-view [rc nodes]
   (at nodes
       [:li.items]
       (clone-for [item (:rationale rc)]
