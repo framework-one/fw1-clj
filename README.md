@@ -45,7 +45,7 @@ You can specify a different port like this:
 
 In fw1-test.core, the call to (fw1/start) can be passed a map of configuration parameters:
 
-* *:default-section* - the _section_ used if none is present in the URL, default *"main"*.
-* *:default-item* - the _item_ used if none is present in the URL, default *"default"*.
-* *:reload-application-on-every-request* - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
-* *:error* - the action - *"section.item"* - to execute if an exception is thrown from the initial request _[not yet implemented]_.
+* **:default-section** - the _section_ used if none is present in the URL, default **"main"**.
+* **:default-item** - the _item_ used if none is present in the URL, default **"default"**.
+* **:reload-application-on-every-request** - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
+* **:error** - the action - **"section.item"** - to execute if an exception is thrown from the initial request _[not yet implemented]_.
