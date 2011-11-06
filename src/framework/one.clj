@@ -35,19 +35,29 @@
            route
            (concat route [""]))))
 
+(defn- stem [sep]
+  (let [config @config]
+    (if-let [app (:application-key config)]
+      (str app sep)
+      "")))
+
 (defn- get-view-nodes [section item]
-  (get-cached-nodes [:view section item] (str "views/" section "/" item ".html") :required true))
+  (get-cached-nodes [:view section item]
+                    (str (stem "/") "views/" section "/" item ".html") :required true))
 
 (defn- apply-controller [controller-ns rc item]
   (if-let [f (resolve (symbol (str controller-ns "/" item)))] (f rc) rc))
 
 (defn- get-layout-nodes [controller-ns section item]
   (let [config @config]
-    [[(get-cached-nodes [:layout section item] (str "layouts/" section "/" item ".html"))
+    [[(get-cached-nodes [:layout section item]
+                        (str (stem "/") "layouts/" section "/" item ".html"))
       (resolve (symbol (str controller-ns "/" item "-layout")))]
-     [(get-cached-nodes [:layout section] (str "layouts/" section ".html"))
+     [(get-cached-nodes [:layout section]
+                        (str (stem "/") "layouts/" section ".html"))
       (resolve (symbol (str controller-ns "/layout")))]
-     [(get-cached-nodes [:layout] "layouts/default.html")
+     [(get-cached-nodes [:layout]
+                        (str (stem "/") "layouts/default.html"))
       (:layout config)]]))
 
 (defn- apply-layout [rc nodes [layout-nodes layout-process]]
@@ -64,7 +74,7 @@
         rc (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
         section (or (first route) (:default-section config))
         item (or (second route) (:default-item config))
-        controller-ns (symbol (str "controllers." section))
+        controller-ns (symbol (str (stem ".") "controllers." section))
         _ (if (:reload-application-on-every-request config)
             (do
               (reset! node-cache {})
@@ -97,8 +107,8 @@
 
 (defn start [& app-config]
   (def ^:private config (atom {}))
-  (let [defaults {:default-section "main"
-                  :default-item "default"
+  (let [defaults {:default-item "default"
+                  :default-section "main"
                   :reload-application-on-every-request false}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
     (reset! config my-config)
