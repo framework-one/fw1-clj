@@ -4,7 +4,7 @@
   (:require [net.cgrand.enlive-html :as html]))
 
 ;; Enlive bridge
-(def ^:private enlive-symbols ['at 'clone-for 'content])
+(def ^:private enlive-symbols ['append 'at 'clone-for 'content 'do-> 'html-content 'remove-class 'set-attr 'substitute])
 
 (defmacro enlive-alias ^:private [sym]
   `(let [enlive-sym# (resolve (symbol (str "html/" ~sym)))]
@@ -29,22 +29,34 @@
         (swap! node-cache #(assoc % node-key nodes))
         nodes)))
 
-(defn- get-view-nodes [section item]
-  (get-cached-nodes [:view section item] (str "views/" section "/" item ".html") :required true))
-
-(defn- get-layout-nodes [section item]
-  [(get-cached-nodes [:layout section item] (str "layouts/" section "/" item ".html"))
-   (get-cached-nodes [:layout section] (str "layouts/" section ".html"))
-   (get-cached-nodes [:layout] "layouts/default.html")])
-
 (defn- as-map [route]
   (apply hash-map
          (if (even? (count route))
            route
            (concat route [""]))))
 
+(defn- get-view-nodes [section item]
+  (get-cached-nodes [:view section item] (str "views/" section "/" item ".html") :required true))
+
 (defn- apply-controller [controller-ns rc item]
   (if-let [f (resolve (symbol (str controller-ns "/" item)))] (f rc) rc))
+
+(defn- get-layout-nodes [controller-ns section item]
+  (let [config @config]
+    [[(get-cached-nodes [:layout section item] (str "layouts/" section "/" item ".html"))
+      (resolve (symbol (str controller-ns "/" item "-layout")))]
+     [(get-cached-nodes [:layout section] (str "layouts/" section ".html"))
+      (resolve (symbol (str controller-ns "/layout")))]
+     [(get-cached-nodes [:layout] "layouts/default.html")
+      (:layout config)]]))
+
+(defn- apply-layout [rc nodes [layout-nodes layout-process]]
+  (if layout-nodes
+    (let [layout-nodes (at layout-nodes [:#body] (substitute nodes))]
+      (if layout-process
+        (layout-process rc layout-nodes)
+        layout-nodes))
+    nodes))
 
 (defn- controller [req]
   (let [config @config
@@ -59,11 +71,13 @@
               (require controller-ns :reload))
             (require controller-ns))
         rc (reduce (partial apply-controller controller-ns) rc ["before" item "after"])
-        view-process (resolve (symbol (str controller-ns "/" item "-view")))
         view-nodes (get-view-nodes section item)
+        view-process (resolve (symbol (str controller-ns "/" item "-view")))
         view-render (if view-process
                       (view-process view-nodes rc)
                       view-nodes)
+        layouts (get-layout-nodes controller-ns section item)
+        view-render (reduce (partial apply-layout rc) view-render layouts)
         view-html (apply str (html/emit* view-render))]
     {:status 200
      :headers {"Content-Type" "text/html"}
