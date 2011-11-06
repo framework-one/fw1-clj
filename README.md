@@ -37,14 +37,15 @@ Then FW/1 looks for a cascade of layouts:
 
 You can start the server on port 8080 with:
 
-<pre>lein run -m fw1-test.core</pre>
+<pre>lein run -m example.main</pre>
 
 You can specify a different port like this:
 
-<pre>PORT=8111 lein run -m fw1-test.core</pre>
+<pre>PORT=8111 lein run -m example.main</pre>
 
 In fw1-test.core, the call to (fw1/start) can be passed a map of configuration parameters:
 
+* **:application-key** - the namespace prefix for the application, default none.
 * **:default-section** - the _section_ used if none is present in the URL, default **"main"**.
 * **:default-item** - the _item_ used if none is present in the URL, default **"default"**.
 * **:reload-application-on-every-request** - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
