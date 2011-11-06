@@ -1,4 +1,4 @@
-(ns controllers.main
+(ns example.controllers.main
   (:use framework.one))
 
 ;; controller methods
