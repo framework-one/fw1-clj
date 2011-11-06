@@ -1,6 +1,7 @@
 (ns framework.one
   (:require [clojure.walk :as walk])
   (:require [ring.middleware.params :as ring-p])
+  (:require [ring.middleware.resource :as ring-r])
   (:require [net.cgrand.enlive-html :as html]))
 
 ;; Enlive bridge
@@ -94,11 +95,9 @@
      :body view-html}))
 
 (defn- wrapper [req]
-  (if (.endsWith (:uri req) "/favicon.ico")
-    {:status 200
-     :headers {"Content-Type" "text/html"}
-     :body "favicon.ico not found"}
-    ((ring-p/wrap-params controller) req)))
+  ((-> controller
+     ring-p/wrap-params
+     (ring-r/wrap-resource (stem "/"))) req))
 
 (defn- framework-defaults [options]
   (if (:error options)
