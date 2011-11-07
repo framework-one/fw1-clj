@@ -14,6 +14,9 @@
 (def ^:private users (atom initial-user-data))
 
 ;; data access methods - would be in a service
+(defn- get-department-by-id [id]
+  (first (filter #(== id (:id %)) departments)))
+
 (defn- get-user-by-id [id]
   (first (filter #(== id (:id %)) @users)))
 
@@ -59,5 +62,13 @@
                        identity)
                      (content (:name dept)))))))
 
-(defn form-list [rc nodes]
-  nodes)
+(defn list-view [rc nodes]
+  (at nodes
+      [:tr.zero] (if (empty? @users) identity (substitute ""))
+      [:tr.user]
+      (clone-for [user @users]
+                 [:td.id :a] (content (str (:id user)))
+                 [:td.name :a] (content (str (:first-name user) " " (:last-name user)))
+                 [:td.email] (content (:email user))
+                 [:td.department] (content (:name (get-department-by-id (:department-id user))))
+                 )))
