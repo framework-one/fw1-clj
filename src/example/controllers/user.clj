@@ -27,6 +27,10 @@
 (defn default [rc]
   (assoc rc :message "Welcome to the Framework One User Manager application demo!"))
 
+(defn delete [rc]
+  ;; need redirect!
+  )
+
 (defn form [rc]
   ;; fetch user based on id
   (assoc rc :user (get-user-by-id (to-long (:id rc)))))
