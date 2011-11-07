@@ -5,7 +5,8 @@
   (:require [net.cgrand.enlive-html :as html]))
 
 ;; Enlive bridge
-(def ^:private enlive-symbols ['append 'at 'clone-for 'content 'do-> 'html-content 'remove-class 'set-attr 'substitute])
+(def ^:private enlive-symbols
+  ['append 'at 'clone-for 'content 'do-> 'html-content 'prepend 'remove-class 'set-attr 'substitute])
 
 (defmacro enlive-alias ^:private [sym]
   `(let [enlive-sym# (resolve (symbol (str "html/" ~sym)))]
@@ -13,6 +14,10 @@
 
 (doseq [sym enlive-symbols]
   (enlive-alias sym))
+
+;; Enlive extensions
+(defn append-attr [attr v]
+  #((set-attr attr (str (get-in % [:attrs attr] "") v)) %))
 
 ;; FW/1 base functionality
 
