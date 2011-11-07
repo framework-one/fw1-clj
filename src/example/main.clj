@@ -8,6 +8,7 @@
     (run-jetty
      (wrap-reload
       (fw1/start :application-key "example"
+                 :default-section "user"
                  :reload-application-on-every-request true)
       '(framework.one))
      {:port port})))
