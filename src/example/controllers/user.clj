@@ -32,7 +32,7 @@
   (assoc rc :user (get-user-by-id (to-long (:id rc)))))
 
 (defn list [rc]
-  rc)
+  (assoc rc :users @users))
 
 (defn save [rc]
   ;; need redirect!
@@ -63,12 +63,19 @@
                      (content (:name dept)))))))
 
 (defn list-view [rc nodes]
-  (at nodes
-      [:tr.zero] (if (empty? @users) identity (substitute ""))
-      [:tr.user]
-      (clone-for [user @users]
-                 [:td.id :a] (content (str (:id user)))
-                 [:td.name :a] (content (str (:first-name user) " " (:last-name user)))
-                 [:td.email] (content (:email user))
-                 [:td.department] (content (:name (get-department-by-id (:department-id user))))
-                 )))
+  (let [users (:users rc)]
+    (at nodes
+        [:tr.zero] (if (empty? users) identity (substitute ""))
+        [:tr.user]
+        (clone-for [user users]
+                   [:td.id :a]
+                   (do->
+                    (append-attr :href (:id user))
+                    (content (str (:id user))))
+                   [:td.name :a]
+                   (do->
+                    (append-attr :href (:id user))
+                    (content (str (:first-name user) " " (:last-name user))))
+                   [:td.email] (content (:email user))
+                   [:td.department] (content (:name (get-department-by-id (:department-id user))))
+                   [:td.delete :a] (append-attr :href (:id user))))))
