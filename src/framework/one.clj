@@ -21,6 +21,13 @@
 
 ;; FW/1 base functionality
 
+;; (start & config) - entry point to the framework
+
+(defn redirect [rc url]
+  (assoc rc ::redirect {:status 302 :headers {"Location" url}}))
+
+;; FW/1 implementation
+
 (declare config)
 (def ^:private node-cache (atom {}))
 
@@ -52,7 +59,9 @@
                     (str (stem "/") "views/" section "/" item ".html") :required true))
 
 (defn- apply-controller [controller-ns rc item]
-  (if-let [f (resolve (symbol (str controller-ns "/" item)))] (f rc) rc))
+  (if (::redirect rc)
+    rc
+    (if-let [f (resolve (symbol (str controller-ns "/" item)))] (f rc) rc)))
 
 (defn- get-layout-nodes [controller-ns section item]
   (let [config @config]
@@ -86,18 +95,20 @@
               (reset! node-cache {})
               (require controller-ns :reload))
             (require controller-ns))
-        rc (reduce (partial apply-controller controller-ns) rc ["before" item "after"])
-        view-nodes (get-view-nodes section item)
-        view-process (resolve (symbol (str controller-ns "/" item "-view")))
-        view-render (if view-process
-                      (view-process rc view-nodes)
-                      view-nodes)
-        layouts (get-layout-nodes controller-ns section item)
-        view-render (reduce (partial apply-layout rc) view-render layouts)
-        view-html (apply str (html/emit* view-render))]
-    {:status 200
-     :headers {"Content-Type" "text/html"}
-     :body view-html}))
+        rc (reduce (partial apply-controller controller-ns) rc ["before" item "after"])]
+    (if-let [redirect (::redirect rc)]
+      redirect
+      (let [view-nodes (get-view-nodes section item)
+            view-process (resolve (symbol (str controller-ns "/" item "-view")))
+            view-render (if view-process
+                          (view-process rc view-nodes)
+                          view-nodes)
+            layouts (get-layout-nodes controller-ns section item)
+            view-render (reduce (partial apply-layout rc) view-render layouts)
+            view-html (apply str (html/emit* view-render))]
+        {:status 200
+         :headers {"Content-Type" "text/html"}
+         :body view-html}))))
 
 (defn- wrapper [req]
   ((-> controller
