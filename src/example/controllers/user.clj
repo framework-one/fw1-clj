@@ -29,7 +29,7 @@
 
 (defn delete [rc]
   ;; need redirect!
-  )
+  (redirect rc "/user/list"))
 
 (defn form [rc]
   ;; fetch user based on id
@@ -40,7 +40,7 @@
 
 (defn save [rc]
   ;; need redirect!
-  )
+  (redirect rc "/user/list"))
 
 ;; view methods
 (defn default-view [rc nodes]
