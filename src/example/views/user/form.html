@@ -1,0 +1,32 @@
+<h3>User Info</h3>
+<form class="familiar medium" method="post" action="/user/save">
+	
+	<input type="hidden" name="id" id="id" value=""/>
+	
+	<div class="field">
+		<label for="first-name" class="label">First Name:</label>
+		<input type="text" name="first-name" id="first-name" value=""/>
+	</div>
+	
+	<div class="field">
+		<label for="last-name" class="label">Last Name:</label>
+		<input type="text" name="last-name" id="last-name" value=""/>
+	</div>
+	
+	<div class="field">
+		<label for="email" class="label">Email:</label>
+		<input type="text" name="email" id="email" value=""/>
+	</div>
+	
+	<div class="field">
+		<label for="department-id" class="label">Department:</label>
+		<select name="department-id" id="department-id">
+			<option value="id">name</option>
+		</select>
+	</div>
+	
+	<div class="control">
+		<input type="submit" value="Save User"/>
+	</div>
+	
+</form>
