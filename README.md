@@ -70,6 +70,20 @@ In fw1-test.core, the call to (fw1/start) can be passed a map of configuration p
 * **:default-item** - the _item_ used if none is present in the URL, default **"default"**.
 * **:error** - the action - _"section.item"_ - to execute if an exception is thrown from the initial request, defaults to **:default-section** value and **"error"** _[untested]_.
 * **:home** - the _"section.item"_ pair used for the / URL, defaults to **:default-section** and **:default-item** values.
+* **:layout** - specify a transform function for the site-wide layout, if needed (default none).
 * **:password** - specify a password for the application reload URL flag, default **"secret"** - see also **:reload**.
 * **:reload** - specify an **rc** key for the application reload URL flag, default **:reload** - see also **:password**.
 * **:reload-application-on-every-request** - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
+
+To create your own FW/1 application, use Leiningen to create a new project, edit **project.clj** to add a dependency on **[framework-one "0.0.2"]** (or later, check on Clojars!) and then you'll need a "main" driver file that looks something like this (modulo the namespace):
+<pre>
+(ns main
+  (:require [framework.one :as fw1])
+  (:use [ring.adapter.jetty])
+  (:use [ring.middleware.reload]))
+
+(defn -main[]
+  (let [port (Integer/parseInt (get (System/getenv) "PORT" "8080"))] 
+    (run-jetty
+      (fw1/start) ;; configuration can go here
+      {:port port})))</pre>
