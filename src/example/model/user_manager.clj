@@ -10,9 +10,7 @@
 (def ^:private initial-user-data
   [{:id 1 :first-name "Sean" :last-name "Corfield" :email "sean@worldsingles.com" :department-id 4}])
 
-(def ^:private users (atom {}))
-
-(reset! users initial-user-data)
+(def ^:private users (atom initial-user-data))
 
 (defn- new-id [rows]
   (if (empty? rows) 1 (inc (:id (apply max-key :id rows)))))
