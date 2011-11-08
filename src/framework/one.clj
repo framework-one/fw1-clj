@@ -96,8 +96,9 @@
   (let [config @config
         route (parts req)
         rc (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
-        section (or (first route) (:default-section config))
-        item (or (second route) (:default-item config))
+        [section item] (if (empty? route)
+                         (:home config)
+                         [(first route) (or (second route) (:default-item config))])
         controller-ns (symbol (str (stem ".") "controllers." section))
         _ (if (or (reload? rc)
                   (:reload-application-on-every-request config))
@@ -126,9 +127,13 @@
      (ring-r/wrap-resource (stem "/"))) req))
 
 (defn- framework-defaults [options]
-  (if (:error options)
-    (assoc options :error (.split (:error options) "."))
-    (assoc options :error [(:default-section options) "error"])))
+  (assoc options
+         :error (if (:error options)
+                  (clojure.string/split (:error options) #"\.")
+                  [(:default-section options) "error"])
+         :home  (if (:home options)
+                  (clojure.string/split (:home options) #"\.")
+                  [(:default-section options) (:default-item options)])))
 
 (defn start [& app-config]
   (def ^:private config (atom {}))
