@@ -1,4 +1,4 @@
-(defproject framework-one "0.0.1"
+(defproject framework-one "0.0.2-SNAPSHOT"
   :description "A lightweight, convention-based MVC web framework."
   :dev-resources-path "examples"
   :dependencies [[org.clojure/clojure "1.3.0"]
