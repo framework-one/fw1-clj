@@ -43,12 +43,11 @@
 
 (defn- parts [req] (rest (.split (:uri req) "/")))
 
-(defn- get-cached-nodes [node-key node-path & {:keys [required] :or {required false}}]
+(defn- get-cached-nodes [node-key node-path]
   (or (get @node-cache node-key)
       (let [nodes (try
                     (html/html-resource node-path)
-                    (catch Exception e
-                      (if required (throw e) nil)))]
+                    (catch Exception _ nil))]
         (swap! node-cache #(assoc % node-key nodes))
         nodes)))
 
@@ -65,8 +64,7 @@
       "")))
 
 (defn- get-view-nodes [section item]
-  (get-cached-nodes [:view section item]
-                    (str (stem "/") "views/" section "/" item ".html") :required true))
+  (get-cached-nodes [:view section item] (str (stem "/") "views/" section "/" item ".html")))
 
 (defn- apply-controller [controller-ns rc item]
   (if (::redirect rc)
@@ -86,9 +84,8 @@
       (:layout config)]]))
 
 (defn- apply-view [rc controller-ns section item]
-  (let [view-nodes (get-view-nodes section item)
-        view-process (resolve (symbol (str controller-ns "/" item "-view")))]
-    (if view-process
+  (when-let [view-nodes (get-view-nodes section item)]
+    (if-let [view-process (resolve (symbol (str controller-ns "/" item "-view")))]
       (view-process rc view-nodes)
       view-nodes)))
 
@@ -101,13 +98,16 @@
     nodes))
 
 (defn- render-page [rc controller-ns section item]
-  (let [view-render (apply-view rc controller-ns section item)
-        layout-cascade (get-layout-nodes controller-ns section item)
-        final-render (reduce (partial apply-layout rc) view-render layout-cascade)
-        final-html (apply str (html/emit* final-render))]
-    {:status 200
-     :headers {"Content-Type" "text/html"}
-     :body final-html}))
+  (if-let [view-render (apply-view rc controller-ns section item)]
+    (let [layout-cascade (get-layout-nodes controller-ns section item)
+          final-render (reduce (partial apply-layout rc) view-render layout-cascade)
+          final-html (apply str (html/emit* final-render))]
+      {:status 200
+       :headers {"Content-Type" "text/html"}
+       :body final-html})
+    {:status 404
+     :header {"Content-Type" "text/html"}
+     :body "Not Found"}))
 
 (defn- require-controller [rc controller-ns]
   (try
