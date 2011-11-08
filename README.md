@@ -87,3 +87,4 @@ To create your own FW/1 application, use Leiningen to create a new project, edit
     (run-jetty
       (fw1/start) ;; configuration can go here
       {:port port})))</pre>
+At a minimum you'll want **views/main/default.html** containing your default application's page (HTML).
