@@ -6,9 +6,6 @@
 (defn -main[]
   (let [port (Integer/parseInt (get (System/getenv) "PORT" "8080"))] 
     (run-jetty
-     (wrap-reload
       (fw1/start :application-key "example"
-                 :default-section "user"
-                 :reload-application-on-every-request true)
-      '(framework.one))
-     {:port port})))
+                 :default-section "user")
+      {:port port})))
