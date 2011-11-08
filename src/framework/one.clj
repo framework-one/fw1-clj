@@ -4,6 +4,8 @@
   (:require [ring.middleware.resource :as ring-r])
   (:require [net.cgrand.enlive-html :as html]))
 
+(declare config)
+
 ;; Enlive bridge
 (def ^:private enlive-symbols
   ['append 'at 'clone-for 'content 'do-> 'html-content 'prepend 'remove-class 'set-attr 'substitute])
@@ -26,9 +28,16 @@
 (defn redirect [rc url]
   (assoc rc ::redirect {:status 302 :headers {"Location" url}}))
 
-;; FW/1 implementation
+(defn reload? [rc]
+  (let [config @config
+        reload (get rc (:reload config))
+        password (:password config)]
+    (and reload password (= reload password))))
 
-(declare config)
+(defn to-long [l]
+  (try (Long/parseLong l) (catch Exception _ 0)))
+
+;; FW/1 implementation
 (def ^:private node-cache (atom {}))
 
 (defn- parts [req] (rest (.split (:uri req) "/")))
@@ -90,10 +99,11 @@
         section (or (first route) (:default-section config))
         item (or (second route) (:default-item config))
         controller-ns (symbol (str (stem ".") "controllers." section))
-        _ (if (:reload-application-on-every-request config)
+        _ (if (or (reload? rc)
+                  (:reload-application-on-every-request config))
             (do
               (reset! node-cache {})
-              (require controller-ns :reload))
+              (require controller-ns :reload-all))
             (require controller-ns))
         rc (reduce (partial apply-controller controller-ns) rc ["before" item "after"])]
     (if-let [redirect (::redirect rc)]
@@ -124,6 +134,8 @@
   (def ^:private config (atom {}))
   (let [defaults {:default-item "default"
                   :default-section "main"
+                  :password "secret"
+                  :reload :reload
                   :reload-application-on-every-request false}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
     (reset! config my-config)
