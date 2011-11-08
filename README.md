@@ -68,8 +68,8 @@ In fw1-test.core, the call to (fw1/start) can be passed a map of configuration p
 * **:application-key** - the namespace prefix for the application, default none.
 * **:default-section** - the _section_ used if none is present in the URL, default **"main"**.
 * **:default-item** - the _item_ used if none is present in the URL, default **"default"**.
+* **:error** - the action - _"section.item"_ - to execute if an exception is thrown from the initial request, defaults to **:default-section** value and **"error"** _[untested]_.
 * **:home** - the _"section.item"_ pair used for the / URL, defaults to **:default-section** and **:default-item** values.
 * **:password** - specify a password for the application reload URL flag, default **"secret"** - see also **:reload**.
 * **:reload** - specify an **rc** key for the application reload URL flag, default **:reload** - see also **:password**.
 * **:reload-application-on-every-request** - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
-* **:error** - the action - _"section.item"_ - to execute if an exception is thrown from the initial request, defaults to **:default-section** value and **"error"** _[not yet implemented]_.
