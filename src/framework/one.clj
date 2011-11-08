@@ -97,6 +97,11 @@
         layout-nodes))
     nodes))
 
+(defn- not-found []
+  {:status 404
+   :header {"Content-Type" "text/html"}
+   :body "Not Found"})
+
 (defn- render-page [rc controller-ns section item]
   (if-let [view-render (apply-view rc controller-ns section item)]
     (let [layout-cascade (get-layout-nodes controller-ns section item)
@@ -105,9 +110,7 @@
       {:status 200
        :headers {"Content-Type" "text/html"}
        :body final-html})
-    {:status 404
-     :header {"Content-Type" "text/html"}
-     :body "Not Found"}))
+    (not-found)))
 
 (defn- require-controller [rc controller-ns]
   (try
@@ -125,23 +128,33 @@
       (:home config)
       [(first route) (or (second route) (:default-item config))])))
 
+(defn- render-request [req]
+  (let [config @config
+        route (parts req)
+        rc (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
+        [section item] (get-section-item route)
+        controller-ns (symbol (str (stem ".") "controllers." section))
+        _ (require-controller rc controller-ns)
+        rc (reduce (partial apply-controller controller-ns) rc ["before" item "after"])]
+    (if-let [redirect (::redirect rc)]
+      redirect
+      (render-page rc controller-ns section item))))
+
 (defn- controller [req]
   ;; since favicon.ico is commonly requested but often not present, we special case
   ;; it and return 404 Not Found rather than look for (and fail to find) that action!
   (if (= "/favicon.ico" (:uri req))
-    {:status 404
-     :headers {"Content-Type" "text/html"}
-     :body "Not Found"}
-    (let [config @config
-          route (parts req)
-          rc (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
-          [section item] (get-section-item route)
-          controller-ns (symbol (str (stem ".") "controllers." section))
-          _ (require-controller rc controller-ns)
-          rc (reduce (partial apply-controller controller-ns) rc ["before" item "after"])]
-      (if-let [redirect (::redirect rc)]
-        redirect
-        (render-page rc controller-ns section item)))))
+    (not-found)
+    (try
+      (render-request req)
+      (catch Exception e
+        (if (::handling-exception req)
+          (throw e)
+          (controller
+           (assoc req
+             ::handling-exception true
+             :exception e
+             :uri (str "/" (first (:error config)) "/" (second (:error config))))))))))
 
 (defn- wrapper [req]
   ((-> controller
