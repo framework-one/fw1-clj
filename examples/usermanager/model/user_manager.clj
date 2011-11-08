@@ -1,4 +1,4 @@
-(ns example.model.user-manager)
+(ns usermanager.model.user-manager)
 
 ;; mock data
 (def ^:private departments

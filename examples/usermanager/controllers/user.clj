@@ -1,6 +1,6 @@
-(ns example.controllers.user
+(ns usermanager.controllers.user
   (:use framework.one)
-  (:use example.model.user-manager))
+  (:use usermanager.model.user-manager))
 
 ;; controller methods
 (defn default [rc]

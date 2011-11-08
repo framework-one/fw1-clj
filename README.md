@@ -57,11 +57,11 @@ In addition FW/1 adds:
 
 You can start the server on port 8080 with:
 
-<pre>lein run -m example.main</pre>
+<pre>lein run -m usermanager.main</pre>
 
 You can specify a different port like this:
 
-<pre>PORT=8111 lein run -m example.main</pre>
+<pre>PORT=8111 lein run -m usermanager.main</pre>
 
 In fw1-test.core, the call to (fw1/start) can be passed a map of configuration parameters:
 
