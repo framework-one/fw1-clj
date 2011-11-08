@@ -32,7 +32,8 @@
   (let [config @config
         reload (get rc (:reload config))
         password (:password config)]
-    (and reload password (= reload password))))
+    (or (and reload password (= reload password))
+        (:reload-application-on-every-request config))))
 
 (defn to-long [l]
   (try (Long/parseLong l) (catch Exception _ 0)))
@@ -84,6 +85,13 @@
                         (str (stem "/") "layouts/default.html"))
       (:layout config)]]))
 
+(defn- apply-view [rc controller-ns section item]
+  (let [view-nodes (get-view-nodes section item)
+        view-process (resolve (symbol (str controller-ns "/" item "-view")))]
+    (if view-process
+      (view-process rc view-nodes)
+      view-nodes)))
+
 (defn- apply-layout [rc nodes [layout-nodes layout-process]]
   (if layout-nodes
     (let [layout-nodes (at layout-nodes [:#body] (substitute nodes))]
@@ -92,34 +100,48 @@
         layout-nodes))
     nodes))
 
+(defn- render-page [rc controller-ns section item]
+  (let [view-render (apply-view rc controller-ns section item)
+        layout-cascade (get-layout-nodes controller-ns section item)
+        final-render (reduce (partial apply-layout rc) view-render layout-cascade)
+        final-html (apply str (html/emit* final-render))]
+    {:status 200
+     :headers {"Content-Type" "text/html"}
+     :body final-html}))
+
+(defn- require-controller [rc controller-ns]
+  (try
+    (if (reload? rc)
+      (do
+        (reset! node-cache {})
+        (require controller-ns :reload-all))
+      (require controller-ns))
+    (catch Exception _
+      nil)))
+
+(defn- get-section-item [route]
+  (let [config @config]
+    (if (empty? route)
+      (:home config)
+      [(first route) (or (second route) (:default-item config))])))
+
 (defn- controller [req]
-  (let [config @config
-        route (parts req)
-        rc (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
-        [section item] (if (empty? route)
-                         (:home config)
-                         [(first route) (or (second route) (:default-item config))])
-        controller-ns (symbol (str (stem ".") "controllers." section))
-        _ (if (or (reload? rc)
-                  (:reload-application-on-every-request config))
-            (do
-              (reset! node-cache {})
-              (require controller-ns :reload-all))
-            (require controller-ns))
-        rc (reduce (partial apply-controller controller-ns) rc ["before" item "after"])]
-    (if-let [redirect (::redirect rc)]
-      redirect
-      (let [view-nodes (get-view-nodes section item)
-            view-process (resolve (symbol (str controller-ns "/" item "-view")))
-            view-render (if view-process
-                          (view-process rc view-nodes)
-                          view-nodes)
-            layouts (get-layout-nodes controller-ns section item)
-            view-render (reduce (partial apply-layout rc) view-render layouts)
-            view-html (apply str (html/emit* view-render))]
-        {:status 200
-         :headers {"Content-Type" "text/html"}
-         :body view-html}))))
+  ;; since favicon.ico is commonly requested but often not present, we special case
+  ;; it and return 404 Not Found rather than look for (and fail to find) that action!
+  (if (= "/favicon.ico" (:uri req))
+    {:status 404
+     :headers {"Content-Type" "text/html"}
+     :body "Not Found"}
+    (let [config @config
+          route (parts req)
+          rc (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
+          [section item] (get-section-item route)
+          controller-ns (symbol (str (stem ".") "controllers." section))
+          _ (require-controller rc controller-ns)
+          rc (reduce (partial apply-controller controller-ns) rc ["before" item "after"])]
+      (if-let [redirect (::redirect rc)]
+        redirect
+        (render-page rc controller-ns section item)))))
 
 (defn- wrapper [req]
   ((-> controller
