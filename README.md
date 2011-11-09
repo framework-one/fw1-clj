@@ -75,7 +75,7 @@ In fw1-test.core, the call to (fw1/start) can be passed a map of configuration p
 * **:reload** - specify an **rc** key for the application reload URL flag, default **:reload** - see also **:password**.
 * **:reload-application-on-every-request** - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
 
-To create your own FW/1 application, use Leiningen to create a new project, edit **project.clj** to add a dependency on **[framework-one "0.0.2"]** (or later, check on Clojars!) and then you'll need a "main" driver file that looks something like this (modulo the namespace):
+To create your own FW/1 application, use Leiningen to create a new project, edit **project.clj** to add a dependency on **[framework-one "0.0.3"]** (or later, check on Clojars!) and then you'll need a "main" driver file that looks something like this (modulo the namespace):
 <pre>
 (ns main
   (:require [framework.one :as fw1])

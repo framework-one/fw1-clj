@@ -43,10 +43,13 @@
 
 (defn- parts [req] (rest (.split (:uri req) "/")))
 
+(defn- ->fs [path]
+  (.replaceAll path "-" "_"))
+
 (defn- get-cached-nodes [node-key node-path]
   (or (get @node-cache node-key)
       (let [nodes (try
-                    (html/html-resource node-path)
+                    (html/html-resource (->fs node-path))
                     (catch Exception _ nil))]
         (swap! node-cache #(assoc % node-key nodes))
         nodes)))
