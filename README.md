@@ -17,6 +17,8 @@ The standard file structure for a FW/1 application is:
 * **layouts/** - contains per-_item_, per-_section_ and per-site layouts as needed.
 * **views/** - contains a folder for each _section_, containing an HTML view for each _item_.
 
+The easiest way to get started with FW/1 is to use the [lein-fw1](https://github.com/seancorfield/lein-fw1) plugin for Leiningen. The plugin can create a basic FW/1 skeleton project for you that "just works" and provides the directory structure and some basic files for you to get started with.
+
 Controllers can have _before(rc)_ and _after(rc)_ handler functions that apply to all requests in a _section_.
 
 A URL of <tt>/section/item</tt> will cause FW/1 to call:
