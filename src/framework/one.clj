@@ -1,7 +1,9 @@
 (ns framework.one
   (:require [clojure.walk :as walk])
+  (:require [ring.middleware.flash :as ring-f])
   (:require [ring.middleware.params :as ring-p])
   (:require [ring.middleware.resource :as ring-r])
+  (:require [ring.middleware.session :as ring-s])
   (:require [net.cgrand.enlive-html :as html]))
 
 (declare config)
@@ -21,9 +23,19 @@
 (defn append-attr [attr v]
   #((set-attr attr (str (get-in % [:attrs attr] "") v)) %))
 
+;; scope access utility
+(defn- scope-access [scope]
+  (fn
+    ([rc n] (get-in rc [scope n]))
+    ([rc n v] (assoc-in rc [scope n] v))))
+
 ;; FW/1 base functionality
 
 ;; (start & config) - entry point to the framework
+
+(def cookie (scope-access :cookies))
+
+(def flash (scope-access :flash))
 
 (defn redirect [rc url]
   (assoc rc ::redirect {:status 302 :headers {"Location" url}}))
@@ -34,6 +46,8 @@
         password (:password config)]
     (or (and reload password (= reload password))
         (:reload-application-on-every-request config))))
+
+(def session (scope-access :session))
 
 (defn to-long [l]
   (try (Long/parseLong l) (catch Exception _ 0)))
@@ -161,8 +175,10 @@
 
 (defn- wrapper [req]
   ((-> controller
-     ring-p/wrap-params
-     (ring-r/wrap-resource (stem "/"))) req))
+       ring-p/wrap-params
+       ring-f/wrap-flash
+       ring-s/wrap-session
+       (ring-r/wrap-resource (stem "/"))) req))
 
 (defn- framework-defaults [options]
   (assoc options

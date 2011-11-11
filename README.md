@@ -45,8 +45,14 @@ Each of the layout functions should return the **nodes**, updated as necessary.
 
 Any controller function also has access to the the FW/1 API:
 
+* **cookie(rc name)** - returns the value of **name** from the cookie scope
+* **cookie(rc name value)** - sets **name** to **value** in the cookie scope
+* **flash(rc name)** - returns the value of **name** from the flash scope
+* **flash(rc name value)** - sets **name** to **value** in the flash scope
 * **redirect(rc url)** - returns **rc** containing information to indicate a redirect to the specified **url**.
 * **reload?(rc)** - returns **true** if the current request includes URL parameters to force an application reload.
+* **session(rc name)** - returns the value of **name** from the session scope
+* **session(rc name value)** - sets **name** to **value** in the session scope
 * **to-long(val)** - converts **val** to a long, returning zero if it cannot be converted (values in **rc** come in as strings so this is useful when you need a number instead and zero can be a sentinel for "no value").
 
 The following transforms from Enlive are exposed as aliases via the FW/1 API:
