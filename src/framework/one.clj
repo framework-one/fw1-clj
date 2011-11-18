@@ -86,7 +86,9 @@
 (defn- apply-controller [controller-ns rc item]
   (if (::redirect rc)
     rc
-    (if-let [f (resolve (symbol (str controller-ns "/" item)))] (f rc) rc)))
+    (if (keyword? item)
+      (if-let [f (item @config)] (f rc) rc)
+      (if-let [f (resolve (symbol (str controller-ns "/" item)))] (f rc) rc))))
 
 (defn- get-layout-nodes [controller-ns section item]
   (let [config @config]
@@ -152,7 +154,7 @@
         [section item] (get-section-item route)
         controller-ns (symbol (str (stem ".") "controllers." section))
         _ (require-controller rc controller-ns)
-        rc (reduce (partial apply-controller controller-ns) rc ["before" item "after"])]
+        rc (reduce (partial apply-controller controller-ns) rc [:before "before" item "after" :after])]
     (if-let [redirect (::redirect rc)]
       redirect
       (render-page rc controller-ns section item))))
@@ -191,7 +193,9 @@
 
 (defn start [& app-config]
   (def ^:private config (atom {}))
-  (let [defaults {:default-item "default"
+  (let [defaults {:after identity
+                  :before identity
+                  :default-item "default"
                   :default-section "main"
                   :password "secret"
                   :reload :reload
