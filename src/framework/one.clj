@@ -23,6 +23,9 @@
 (defn append-attr [attr v]
   #((set-attr attr (str (get-in % [:attrs attr] "") v)) %))
 
+(defn prepend-attr [attr v]
+  #((set-attr attr (str v (get-in % [:attrs attr] ""))) %))
+
 ;; scope access utility
 (defn- scope-access [scope]
   (fn
