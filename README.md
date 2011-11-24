@@ -3,6 +3,8 @@ FW/1 in Clojure
 
 This is a port from CFML to Clojure of Framework One (FW/1).
 
+TL;DR - Want to try it out on Heroku? http://corfield.org/entry/fw-1-user-manager-example-on-heroku
+
 FW/1 in Clojure is based on Ring and Enlive. FW/1 is a lightweight, convention-based MVC framework.
 Controller functions and views are automatically selected based on standard URL patterns - with site sections and items within each section.
 Layouts are applied, if provided, in a cascade from item to section to site.
@@ -62,6 +64,7 @@ The following transforms from Enlive are exposed as aliases via the FW/1 API:
 In addition FW/1 adds:
 
 * **append-attr(attr v)** - appends **v** to the value of the specified attribute **attr** (useful to append data to **href** links).
+* **prepend-attr(attr v)** - prepends **v** to the value of the specified attribute **attr** (useful to prepend protocol / domain to **href** links).
 
 You can start the server on port 8080 with:
 
