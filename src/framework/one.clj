@@ -113,7 +113,7 @@
 
 (defn- apply-layout [rc nodes [layout-nodes layout-process]]
   (if layout-nodes
-    (let [layout-nodes (at layout-nodes [:#body] (substitute nodes))]
+    (let [layout-nodes (at layout-nodes [:#body] (substitute (-> nodes first :content first :content)))]
       (if layout-process
         (layout-process rc layout-nodes)
         layout-nodes))
@@ -202,7 +202,8 @@
                   :default-section "main"
                   :password "secret"
                   :reload :reload
-                  :reload-application-on-every-request false}
+                  :reload-application-on-every-request false
+                  :version "0.0.6"}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
     (reset! config my-config)
     (var wrapper)))
