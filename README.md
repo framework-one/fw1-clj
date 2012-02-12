@@ -19,7 +19,11 @@ The standard file structure for a FW/1 application is:
 * **layouts/** - contains per-_item_, per-_section_ and per-site layouts as needed.
 * **views/** - contains a folder for each _section_, containing an HTML view for each _item_.
 
-The easiest way to get started with FW/1 is to use the [lein-fw1](https://github.com/seancorfield/lein-fw1) plugin for Leiningen. The plugin can create a basic FW/1 skeleton project for you that "just works" and provides the directory structure and some basic files for you to get started with.
+The easiest way to get started with FW/1 is to use the
+[fw1-template](https://github.com/seancorfield/fw1-template) template
+(plugin) for Leiningen. The template can create a basic FW/1 skeleton
+project for you that "just works" and provides the directory structure
+and some basic files for you to get started with. 
 
 Controllers can have _before(rc)_ and _after(rc)_ handler functions that apply to all requests in a _section_.
 
@@ -86,7 +90,7 @@ In fw1-test.core, the call to (fw1/start) can be passed a map of configuration p
 * **:reload** - specify an **rc** key for the application reload URL flag, default **:reload** - see also **:password**.
 * **:reload-application-on-every-request** - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
 
-To create your own FW/1 application, use Leiningen to create a new project, edit **project.clj** to add a dependency on **[framework-one "0.0.5"]** (or later, check on Clojars!) and then you'll need a "main" driver file that looks something like this (modulo the namespace):
+To create your own FW/1 application, use Leiningen to create a new project, edit **project.clj** to add a dependency on **[framework-one "0.0.6"]** (or later, check on Clojars!) and then you'll need a "main" driver file that looks something like this (modulo the namespace):
 <pre>
 (ns main
   (:require [framework.one :as fw1])
