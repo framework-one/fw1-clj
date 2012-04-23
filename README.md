@@ -52,13 +52,13 @@ Each of the layout functions should return the **nodes**, updated as necessary.
 Any controller function also has access to the the FW/1 API:
 
 * **cookie(rc name)** - returns the value of **name** from the cookie scope
-* **cookie(rc name value)** - sets **name** to **value** in the cookie scope
+* **cookie(rc name value)** - sets **name** to **value** in the cookie scope, and returns the updated **rc**
 * **flash(rc name)** - returns the value of **name** from the flash scope
-* **flash(rc name value)** - sets **name** to **value** in the flash scope
+* **flash(rc name value)** - sets **name** to **value** in the flash scope, and returns the updated **rc**
 * **redirect(rc url)** - returns **rc** containing information to indicate a redirect to the specified **url**.
 * **reload?(rc)** - returns **true** if the current request includes URL parameters to force an application reload.
 * **session(rc name)** - returns the value of **name** from the session scope
-* **session(rc name value)** - sets **name** to **value** in the session scope
+* **session(rc name value)** - sets **name** to **value** in the session scope, and returns the updated **rc**
 * **to-long(val)** - converts **val** to a long, returning zero if it cannot be converted (values in **rc** come in as strings so this is useful when you need a number instead and zero can be a sentinel for "no value").
 
 The following transforms from Enlive are exposed as aliases via the FW/1 API:
@@ -80,7 +80,9 @@ You can specify a different port like this:
 
 In fw1-test.core, the call to (fw1/start) can be passed a map of configuration parameters:
 
+* **:after** - a function (taking / returning **rc**) which should be called after invoking any controller
 * **:application-key** - the namespace prefix for the application, default none.
+* **:before** - a function (taking / returning **rc**) which should be called before invoking any controller
 * **:default-section** - the _section_ used if none is present in the URL, default **"main"**.
 * **:default-item** - the _item_ used if none is present in the URL, default **"default"**.
 * **:error** - the action - _"section.item"_ - to execute if an exception is thrown from the initial request, defaults to **:default-section** value and **"error"** _[untested]_.
@@ -100,6 +102,6 @@ To create your own FW/1 application, use Leiningen to create a new project, edit
 (defn -main[]
   (let [port (Integer/parseInt (get (System/getenv) "PORT" "8080"))] 
     (run-jetty
-      (fw1/start) ;; configuration can go here
+      (fw1/start) ;; configuration can go here: (fw1/start :password "abracadabra" :reload "magic")
       {:port port})))</pre>
 At a minimum you'll want **views/main/default.html** containing your default application's page (HTML).
