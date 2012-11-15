@@ -58,7 +58,58 @@
 ;; FW/1 implementation
 (def ^:private node-cache (atom {}))
 
-(defn- parts [req] (rest (.split (:uri req) "/")))
+(defn- process-routes [pieces]
+  (if-let [routes (:routes @config)]
+	pieces
+	pieces))
+
+(defn- parts [req]
+  (rest (.split req "/")))
+
+(defn- compile-route [req]
+  (map (fn [part]
+         (if (.startsWith part ":")
+           (keyword (.substring part 1))
+           part))
+    (parts req)))
+
+(defn- match-part [p r]
+  (cond
+	(keyword? p) {p r}
+    p            (= r p)
+    :else        nil))
+
+(defn- substitute [route lookup tail]
+  (concat (map
+           (fn [part]
+             (if (keyword? part)
+               (lookup part)
+               part))
+           route) tail))
+
+(defn- matches-route [compiled-url compiled-route]
+  (if (empty? compiled-route)
+    [::empty]
+    (take-while identity
+                (map match-part
+                     (concat compiled-route (repeat nil))
+                     (concat compiled-url (repeat nil))))))
+
+(defn- pre-compile-routes [routes]
+  (let [all-routes (apply concat routes)]
+    [(map compile-route (map first all-routes))
+     (map compile-route (map second all-routes))]))
+
+(defn- process-routes [routes new-routes url]
+  (let [url (compile-route url)
+        matching (map (partial matches-route url) routes)
+        no-matches (count (take-while empty? matching))
+        matches (first (drop no-matches matching))
+        lookup (reduce (fn [a b]
+                         (if (map? b) (merge a b) a)) {}
+                       matches)
+        url-rest (if (= [::empty] matches) url (drop (count matches) url))]
+    (substitute (first (drop no-matches new-routes)) lookup url-rest)))
 
 (defn- ->fs [path]
   (.replaceAll path "-" "_"))
@@ -152,7 +203,8 @@
 
 (defn- render-request [req]
   (let [config @config
-        route (parts req)
+        [routes new-routes] (:routes config)
+        route (process-routes routes new-routes (:uri req))
         rc (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
         [section item] (get-section-item route)
         controller-ns (symbol (str (stem ".") "controllers." section))
@@ -185,6 +237,14 @@
        ring-s/wrap-session
        (ring-r/wrap-resource (stem "/"))) req))
 
+(comment "Example of routes"
+(let [[routes new-routes] (pre-compile-routes
+                           [{"/list" "/user/list"}
+                            {"/user/:id" "/user/view/id/:id"}
+                            {"/" "/not/found"}])]
+  (process-routes routes new-routes "/user/42/sort/email"))
+)
+
 (defn- framework-defaults [options]
   (assoc options
          :error (if (:error options)
@@ -192,7 +252,8 @@
                   [(:default-section options) "error"])
          :home  (if (:home options)
                   (clojure.string/split (:home options) #"\.")
-                  [(:default-section options) (:default-item options)])))
+                  [(:default-section options) (:default-item options)])
+         :routes (pre-compile-routes (:routes options))))
 
 (defn start [& app-config]
   (def ^:private config (atom {}))
