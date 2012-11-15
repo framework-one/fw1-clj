@@ -58,11 +58,6 @@
 ;; FW/1 implementation
 (def ^:private node-cache (atom {}))
 
-(defn- process-routes [pieces]
-  (if-let [routes (:routes @config)]
-	pieces
-	pieces))
-
 (defn- parts [req]
   (rest (.split req "/")))
 
@@ -79,7 +74,7 @@
     p            (= r p)
     :else        nil))
 
-(defn- substitute [route lookup tail]
+(defn- substitute-route [route lookup tail]
   (concat (map
            (fn [part]
              (if (keyword? part)
@@ -109,7 +104,7 @@
                          (if (map? b) (merge a b) a)) {}
                        matches)
         url-rest (if (= [::empty] matches) url (drop (count matches) url))]
-    (substitute (first (drop no-matches new-routes)) lookup url-rest)))
+    (substitute-route (first (drop no-matches new-routes)) lookup url-rest)))
 
 (defn- ->fs [path]
   (.replaceAll path "-" "_"))
