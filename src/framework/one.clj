@@ -259,7 +259,7 @@
                   :password "secret"
                   :reload :reload
                   :reload-application-on-every-request false
-                  :version "0.0.6"}
+                  :version "0.0.7-SNAPSHOT"}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
     (reset! config my-config)
     (var wrapper)))
