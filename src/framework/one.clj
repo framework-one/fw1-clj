@@ -80,13 +80,13 @@
          (if (.startsWith part ":")
            (keyword (.substring part 1))
            part))
-    (parts req)))
+       (parts req)))
 
 (defn- match-part [p r]
   (cond
-	(keyword? p) {p r}
-    p            (= r p)
-    :else        nil))
+   (keyword? p) {p r}
+   p            (= r p)
+   :else        nil))
 
 (defn- substitute-route [route lookup tail]
   (concat (map
@@ -116,7 +116,7 @@
         matches (first (drop no-matches matching))
         lookup (reduce (fn [a b]
                          (if (map? b) (merge a b) a)) {}
-                       matches)
+                         matches)
         url-rest (if (= [::empty] matches) url (drop (count matches) url))]
     (substitute-route (first (drop no-matches new-routes)) lookup url-rest)))
 
