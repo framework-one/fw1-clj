@@ -20,8 +20,6 @@
   (:require [ring.middleware.session :as ring-s])
   (:require [net.cgrand.enlive-html :as html]))
 
-(declare config)
-
 ;; Enlive bridge
 (def ^:private enlive-symbols
   ['append 'at 'clone-for 'content 'do-> 'html-content 'prepend 'remove-class 'set-attr 'substitute])
@@ -49,6 +47,8 @@
 ;; FW/1 base functionality
 
 ;; (start & config) - entry point to the framework
+
+(declare config)
 
 (def cookie (scope-access :cookies))
 
