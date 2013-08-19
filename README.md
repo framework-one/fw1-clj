@@ -95,9 +95,8 @@ In fw1-test.core, the call to (fw1/start) can be passed a map of configuration p
 To create your own FW/1 application, use Leiningen to create a new project, edit **project.clj** to add a dependency on **[framework-one "0.1.0"]** (or later, check on Clojars!) and then you'll need a "main" driver file that looks something like this (modulo the namespace):
 <pre>
 (ns main
-  (:require [framework.one :as fw1])
-  (:use [ring.adapter.jetty])
-  (:use [ring.middleware.reload]))
+  (:require [framework.one :as fw1]
+            [ring.adapter.jetty :refer [run-jetty]])
 
 (defn -main[]
   (let [port (Integer/parseInt (get (System/getenv) "PORT" "8080"))] 
