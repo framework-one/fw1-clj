@@ -20,7 +20,7 @@ The standard file structure for a FW/1 application is:
 * **views/** - contains a folder for each _section_, containing an HTML view for each _item_.
 
 The easiest way to get started with FW/1 is to use the
-[fw1-template](https://github.com/seancorfield/fw1-template) template
+[fw1-template](https://github.com/framework-one/fw1-template) template
 (plugin) for Leiningen. The template can create a basic FW/1 skeleton
 project for you that "just works" and provides the directory structure
 and some basic files for you to get started with. 
