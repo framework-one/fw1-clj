@@ -81,6 +81,15 @@ In addition FW/1 adds:
 * **append-attr(attr v)** - appends **v** to the value of the specified attribute **attr** (useful to append data to **href** links).
 * **prepend-attr(attr v)** - prepends **v** to the value of the specified attribute **attr** (useful to prepend protocol / domain to **href** links).
 
+The following symbols from Selmer are exposed as aliases via the FW/1 API:
+
+* **add-tag!**, **add-filter!**
+
+By default, FW/1 adds **empty?** as a filter with the same name so the following is possible out of the box:
+<pre>
+{% if some-var|empty? %}There are none!{% endif %}
+</pre>
+
 You can start the server on port 8080 with:
 
 <pre>lein run -m usermanager.main</pre>
