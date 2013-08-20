@@ -14,6 +14,8 @@
 
 (ns framework.one
   (:require [clojure.walk :as walk]
+            [clojure.data.json :as json]
+            [clojure.data.xml :as xml]
             [ring.middleware.flash :as ring-f]
             [ring.middleware.params :as ring-p]
             [ring.middleware.resource :as ring-r]
@@ -59,6 +61,10 @@
     ([rc n] (get-in rc [scope n]))
     ([rc n v] (assoc-in rc [scope n] v))))
 
+;; render data support
+(defn- render-data [rc as expr]
+  (assoc rc ::render {:as as :data expr}))
+
 ;; FW/1 base functionality
 
 ;; (start & config) - entry point to the framework
@@ -76,6 +82,15 @@
         password (:password config)]
     (or (and reload password (= reload password))
         (:reload-application-on-every-request config))))
+
+(defn render-json [rc expr]
+  (render-data rc :json expr))
+
+(defn render-text [rc expr]
+  (render-data rc :text expr))
+
+(defn render-xml [rc expr]
+  (render-data rc :xml expr))
 
 (def session (scope-access :session))
 
@@ -164,7 +179,8 @@
                       (str (stem "/") "views/" section "/" item "." (:suffix config)))))
 
 (defn- apply-controller [controller-ns rc item]
-  (if (::redirect rc)
+  (if (or (::redirect rc)
+          (::render rc))
     rc
     (if (keyword? item)
       (if-let [f (item @config)] (f rc) rc)
@@ -226,6 +242,24 @@
        :body final-html})
     (not-found)))
 
+(defn- as-xml
+  [expr]
+  (with-out-str (xml/emit (xml/sexp-as-element expr) *out*)))
+
+(def ^:private render-types
+  {:json {:type "application/javascript"
+          :body json/write-str}
+   :text {:type "text/plain"
+          :body identity}
+   :xml  {:type "text/xml"
+          :body as-xml}})
+
+(defn- render-data-response [{:keys [as data]}]
+  (let [renderer (render-types as)]
+    {:status 200
+     :headers {"Content-Type" (:type renderer)}
+     :body ((:body renderer) data)}))
+
 (defn- require-controller [rc controller-ns]
   (try
     (if (reload? rc)
@@ -253,7 +287,9 @@
         rc (reduce (partial apply-controller controller-ns) rc [:before "before" item "after" :after])]
     (if-let [redirect (::redirect rc)]
       redirect
-      (render-page rc controller-ns section item))))
+      (if-let [render-expr (::render rc)]
+        (render-data-response render-expr)
+        (render-page rc controller-ns section item)))))
 
 (defn- controller [req]
   ;; since favicon.ico is commonly requested but often not present, we special case

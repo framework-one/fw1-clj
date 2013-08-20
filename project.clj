@@ -7,6 +7,8 @@
   :profiles {:dev {:resource-paths ["examples"]
                    :dependencies []}}
   :dependencies [[org.clojure/clojure "1.5.1"]
+                 [org.clojure/data.json "0.2.2"]
+                 [org.clojure/data.xml "0.0.7"]
                  [ring "1.0.2"]
                  [enlive "1.0.0"]
                  [selmer "0.4.0"]])
