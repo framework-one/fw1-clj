@@ -128,12 +128,14 @@
   (.replaceAll path "-" "_"))
 
 (defn- get-cached-nodes [node-key node-path]
-  (or (get @node-cache node-key)
-      (let [nodes (try
-                    (html/html-resource (->fs node-path))
-                    (catch Exception _ nil))]
-        (swap! node-cache #(assoc % node-key nodes))
-        nodes)))
+  (if (= :enlive (:template @config))
+    (or (get @node-cache node-key)
+        (let [nodes (try
+                      (html/html-resource (->fs node-path))
+                      (catch Exception _ nil))]
+          (swap! node-cache #(assoc % node-key nodes))
+          nodes))
+    node-path))
 
 (defn- as-map [route]
   (apply hash-map
@@ -148,7 +150,9 @@
       "")))
 
 (defn- get-view-nodes [section item]
-  (get-cached-nodes [:view section item] (str (stem "/") "views/" section "/" item ".html")))
+  (let [config @config]
+    (get-cached-nodes [:view section item]
+                      (str (stem "/") "views/" section "/" item "." (:suffix config)))))
 
 (defn- apply-controller [controller-ns rc item]
   (if (::redirect rc)
@@ -158,30 +162,41 @@
       (if-let [f (resolve (symbol (str controller-ns "/" item)))] (f rc) rc))))
 
 (defn- get-layout-nodes [controller-ns section item]
-  (let [config @config]
+  (let [config @config
+        dot-html (str "." (:suffix config))]
     [[(get-cached-nodes [:layout section item]
-                        (str (stem "/") "layouts/" section "/" item ".html"))
+                        (str (stem "/") "layouts/" section "/" item dot-html))
       (resolve (symbol (str controller-ns "/" item "-layout")))]
      [(get-cached-nodes [:layout section]
-                        (str (stem "/") "layouts/" section ".html"))
+                        (str (stem "/") "layouts/" section dot-html))
       (resolve (symbol (str controller-ns "/layout")))]
      [(get-cached-nodes [:layout]
-                        (str (stem "/") "layouts/default.html"))
+                        (str (stem "/") "layouts/default" dot-html))
       (:layout config)]]))
 
 (defn- apply-view [rc controller-ns section item]
   (when-let [view-nodes (get-view-nodes section item)]
-    (if-let [view-process (resolve (symbol (str controller-ns "/" item "-view")))]
-      (view-process rc view-nodes)
-      view-nodes)))
+    (if (= :enlive (:template @config))
+      (if-let [view-process (resolve (symbol (str controller-ns "/" item "-view")))]
+        (view-process rc view-nodes)
+        view-nodes)
+      (try
+        (selmer.parser/render-file view-nodes rc)
+        (catch Exception _
+          nil)))))
 
 (defn- apply-layout [rc nodes [layout-nodes layout-process]]
-  (if layout-nodes
-    (let [layout-nodes (at layout-nodes [:#body] (substitute (-> nodes first :content first :content)))]
-      (if layout-process
-        (layout-process rc layout-nodes)
-        layout-nodes))
-    nodes))
+  (if (= :enlive (:template @config))
+    (if layout-nodes
+      (let [layout-nodes (at layout-nodes [:#body] (substitute (-> nodes first :content first :content)))]
+        (if layout-process
+          (layout-process rc layout-nodes)
+          layout-nodes))
+      nodes)
+    (try
+      (selmer.parser/render-file layout-nodes (assoc rc :body [:safe nodes]))
+      (catch Exception _
+        nodes))))
 
 (defn- not-found []
   {:status 404
@@ -192,7 +207,9 @@
   (if-let [view-render (apply-view rc controller-ns section item)]
     (let [layout-cascade (get-layout-nodes controller-ns section item)
           final-render (reduce (partial apply-layout rc) view-render layout-cascade)
-          final-html (apply str (html/emit* final-render))]
+          final-html (if (= :enlive (:template @config))
+                       (apply str (html/emit* final-render))
+                       final-render)]
       {:status 200
        :headers {"Content-Type" "text/html"}
        :body final-html})
@@ -276,7 +293,11 @@
                   :password "secret"
                   :reload :reload
                   :reload-application-on-every-request false
-                  :version "0.0.7-SNAPSHOT"}
+                  :template :enlive ; or :selmer
+                  :suffix "html" ; views / layouts would be .html
+                  :version "0.2.0-SNAPSHOT"}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
+    (when (= :selmer (:template my-config))
+      (selmer.filters/add-filter! :empty? empty?))
     (reset! config my-config)
     (var wrapper)))
