@@ -130,8 +130,10 @@
                part))
            route) tail))
 
-(defn- matches-route [compiled-url [verb compiled-route]]
-  (if (empty? compiled-route)
+(defn- matches-route [compiled-url method [verb compiled-route]]
+  (if (or (empty? compiled-route)
+          (and (not= :any verb)
+               (not= verb method)))
     [::empty]
     (take-while identity
                 (map match-part
@@ -143,9 +145,9 @@
     [(map compile-route (map first all-routes))
      (map (comp second compile-route) (map second all-routes))]))
 
-(defn- process-routes [routes new-routes url]
+(defn- process-routes [routes new-routes url method]
   (let [[_ url] (compile-route url)
-        matching (map (partial matches-route url) routes)
+        matching (map (partial matches-route url method) routes)
         no-matches (count (take-while empty? matching))
         matches (first (drop no-matches matching))
         lookup (reduce (fn [a b]
@@ -285,7 +287,7 @@
 (defn- render-request [req]
   (let [config @config
         [routes new-routes] (:routes config)
-        route (process-routes routes new-routes (:uri req))
+        route (process-routes routes new-routes (:uri req) (:request-method req))
         rc (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
         [section item] (get-section-item route)
         controller-ns (symbol (str (stem ".") "controllers." section))
