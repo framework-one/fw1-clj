@@ -1,10 +1,18 @@
 (ns usermanager.controllers.user
-  (:use framework.one)
-  (:use usermanager.model.user-manager))
+  (:require [framework.one :refer :all]
+            [usermanager.model.user-manager :refer :all]))
+
+;; note that -view and -layout functions are only used for the Enlive
+;; version of FW/1 - the Selmer version of FW/1 automatically renders
+;; templates based on what is in rc
 
 ;; controller methods
+
 (defn default [rc]
-  (assoc rc :message "Welcome to the Framework One User Manager application demo!"))
+  (assoc rc
+    :message        "Welcome to the Framework One User Manager application demo!"
+    :reload-message (when (reload? rc)
+                      "The framework cache (and application scope) have been reset.")))
 
 (defn delete [rc]
   (delete-user-by-id (to-long (:id rc)))
@@ -12,24 +20,29 @@
 
 (defn form [rc]
   (let [user (get-user-by-id (to-long (:id rc)))]
-    (assoc rc :user user)))
+    (assoc rc :user user
+           :departments (get-departments))))
 
 (defn list [rc]
-  (let [users (get-users)]
-    (assoc rc :users users)))
+  (let [users (get-users)
+        add-department (fn [u]
+                         (assoc u :department
+                                (:name (get-department-by-id (:department-id u)))))]
+    (assoc rc :users (map add-department users))))
 
 (defn save [rc]
   (let [{:keys [id first-name last-name email department-id]} rc]
     (save-user {:id (to-long id) :first-name first-name :last-name last-name :email email :department-id (to-long department-id)}))
   (redirect rc "/user/list"))
 
-;; view methods
+;; view methods -- only used for Enlive version of FW/1:
+
 (defn default-view [rc nodes]
   (at nodes
-      [:p#message] (content (:message rc))
-      [:p#reload] (if (reload? rc)
-                    (content "The framework cache (and application scope) have been reset.")
-                    (substitute ""))))
+      [:p#message]        (content (:message rc))
+      [:p#reload-message] (if (:reload-message rc)
+                            (content (:reload-message rc))
+                            (substitute ""))))
 
 (defn form-view [rc nodes]
   (let [user (:user rc)]
@@ -62,5 +75,5 @@
                     (append-attr :href (:id user))
                     (content (str (:first-name user) " " (:last-name user))))
                    [:td.email] (content (:email user))
-                   [:td.department] (content (:name (get-department-by-id (:department-id user))))
+                   [:td.department] (content (:department user))
                    [:td.delete :a] (append-attr :href (:id user))))))
