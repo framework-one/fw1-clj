@@ -104,11 +104,17 @@
   (rest (.split req "/")))
 
 (defn- compile-route [req]
-  (map (fn [part]
-         (if (.startsWith part ":")
-           (keyword (.substring part 1))
-           part))
-       (parts req)))
+  (let [verb? (.startsWith req "$")
+        verb (if verb?
+               (cond (.startsWith req "$GET") :get
+                     (.startsWith req "$POST") :post
+                     :else :any))]
+    [verb
+     (map (fn [part]
+            (if (.startsWith part ":")
+              (keyword (.substring part 1))
+              part))
+          (parts req))]))
 
 (defn- match-part [p r]
   (cond
@@ -124,7 +130,7 @@
                part))
            route) tail))
 
-(defn- matches-route [compiled-url compiled-route]
+(defn- matches-route [compiled-url [verb compiled-route]]
   (if (empty? compiled-route)
     [::empty]
     (take-while identity
@@ -135,10 +141,10 @@
 (defn- pre-compile-routes [routes]
   (let [all-routes (apply concat routes)]
     [(map compile-route (map first all-routes))
-     (map compile-route (map second all-routes))]))
+     (map (comp second compile-route) (map second all-routes))]))
 
 (defn- process-routes [routes new-routes url]
-  (let [url (compile-route url)
+  (let [[_ url] (compile-route url)
         matching (map (partial matches-route url) routes)
         no-matches (count (take-while empty? matching))
         matches (first (drop no-matches matching))
@@ -342,7 +348,7 @@
                   :reload-application-on-every-request false
                   :template :enlive ; or :selmer
                   :suffix "html" ; views / layouts would be .html
-                  :version "0.2.3"}
+                  :version "0.2.4-SNAPSHOT"}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
     (when (= :selmer (:template my-config))
       (selmer.filters/add-filter! :empty? empty?))
