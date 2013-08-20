@@ -13,12 +13,18 @@
 ;; limitations under the License.
 
 (ns framework.one
-  (:require [clojure.walk :as walk])
-  (:require [ring.middleware.flash :as ring-f])
-  (:require [ring.middleware.params :as ring-p])
-  (:require [ring.middleware.resource :as ring-r])
-  (:require [ring.middleware.session :as ring-s])
-  (:require [net.cgrand.enlive-html :as html]))
+  (:require [clojure.walk :as walk]
+            [ring.middleware.flash :as ring-f]
+            [ring.middleware.params :as ring-p]
+            [ring.middleware.resource :as ring-r]
+            [ring.middleware.session :as ring-s]
+            [net.cgrand.enlive-html :as html]
+            [selmer.parser]
+            [selmer.filters]))
+
+;; application configuration - set in start function
+
+(def ^:private config (atom {}))
 
 ;; Enlive bridge
 (def ^:private enlive-symbols
@@ -47,8 +53,6 @@
 ;; FW/1 base functionality
 
 ;; (start & config) - entry point to the framework
-
-(declare config)
 
 (def cookie (scope-access :cookies))
 
@@ -265,7 +269,6 @@
          :routes (pre-compile-routes (:routes options))))
 
 (defn start [& app-config]
-  (def ^:private config (atom {}))
   (let [defaults {:after identity
                   :before identity
                   :default-item "default"
