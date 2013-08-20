@@ -1,4 +1,4 @@
-(defproject framework-one "0.2.2"
+(defproject framework-one "0.2.3"
   :description "A lightweight, convention-based MVC web framework."
   :url "https://github.com/framework-one/fw1-clj/"
   :license {:name "Eclipse Public License"
@@ -9,6 +9,6 @@
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.clojure/data.json "0.2.2"]
                  [org.clojure/data.xml "0.0.7"]
-                 [ring "1.0.2"]
+                 [ring "1.0.3"]
                  [enlive "1.0.0"]
                  [selmer "0.4.0"]])
