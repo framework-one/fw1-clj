@@ -235,7 +235,7 @@
 
 (defn- not-found []
   {:status 404
-   :header {"Content-Type" "text/html"}
+   :header {"Content-Type" "text/html; charset=utf-8"}
    :body "Not Found"})
 
 (defn- render-page [rc controller-ns section item]
@@ -246,7 +246,7 @@
                        (apply str (html/emit* final-render))
                        final-render)]
       {:status 200
-       :headers {"Content-Type" "text/html"}
+       :headers {"Content-Type" "text/html; charset=utf-8"}
        :body final-html})
     (not-found)))
 
@@ -255,11 +255,11 @@
   (with-out-str (xml/emit (xml/sexp-as-element expr) *out*)))
 
 (def ^:private render-types
-  {:json {:type "application/javascript"
+  {:json {:type "application/javascript; charset=utf-8"
           :body json/write-str}
-   :text {:type "text/plain"
+   :text {:type "text/plain; charset=utf-8"
           :body identity}
-   :xml  {:type "text/xml"
+   :xml  {:type "text/xml; charset=utf-8"
           :body as-xml}})
 
 (defn- render-data-response [{:keys [as data]}]
