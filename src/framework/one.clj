@@ -203,7 +203,7 @@
     (if (reload? rc)
       (do
         (reset! node-cache {})
-        (require controller-ns :reload-all))
+        (require controller-ns :reload))
       (require controller-ns))
     (catch Exception _
       nil)))
