@@ -19,9 +19,7 @@
 	
 	<br />
 	
-	<div id="primary">
-		<div id="body" />
-	</div>
+	<div id="primary">{{body}}</div>
 	
 </div>
 

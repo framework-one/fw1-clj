@@ -5,7 +5,10 @@ This is a port from CFML to Clojure of Framework One (FW/1).
 
 TL;DR - Want to try it out on Heroku? http://corfield.org/entry/fw-1-user-manager-example-on-heroku
 
-FW/1 in Clojure is based on Ring and Enlive. FW/1 is a lightweight, convention-based MVC framework.
+FW/1 in Clojure is based on Ring and either
+[Enlive](https://github.com/cgrand/enlive) or
+[Selmer](https://github.com/yogthos/Selmer).
+FW/1 is a lightweight, convention-based MVC framework.
 Controller functions and views are automatically selected based on standard URL patterns - with site sections and items within each section.
 Layouts are applied, if provided, in a cascade from item to section to site.
 
@@ -20,7 +23,7 @@ The standard file structure for a FW/1 application is:
 * **views/** - contains a folder for each _section_, containing an HTML view for each _item_.
 
 The easiest way to get started with FW/1 is to use the
-[fw1-template](https://github.com/seancorfield/fw1-template) template
+[fw1-template](https://github.com/framework-one/fw1-template) template
 (plugin) for Leiningen. The template can create a basic FW/1 skeleton
 project for you that "just works" and provides the directory structure
 and some basic files for you to get started with. 
@@ -39,15 +42,23 @@ Then FW/1 will look for an HTML view template:
 
 * **views/section/item.html**
 
-If **controllers.section/item-view(rc nodes)** exists, FW/1 will call that as an Enlive transform on the view template. A view function should return the **nodes**, updated as necessary.
+The suffix can be controlled by the **:suffix** configuration option. In the user manager example, you'll see an Enlive version using the default **"html"** configuration and a Selmer version using **:template :selmer** and **:suffix "tpl"**.
 
-Then FW/1 looks for a cascade of layouts:
+When using Enlive, if **controllers.section/item-view(rc nodes)** exists, FW/1 will call that as an Enlive transform on the view template. A view function should return the **nodes**, updated as necessary.
 
-* **layouts/section/item.html**, replacing an HTML element with the id **"body"** with the view, and then applying **controllers.section/item-layout(rc nodes)** as a transform, if it exists.
-* **layouts/section.html**, replacing an HTML element with the id **"body"** with the view so far, and then applying **controllers.section/layout(rc nodes)** as a transform, if it exists.
-* **layouts/default.html**, replacing an HTML element with the id **"body"** with the view so far, and then applying the function provided as the **:layout** element of the configuration as a transform, if it was specified.
+Then FW/1 looks for a cascade of layouts (again, the suffix configurable):
 
-Each of the layout functions should return the **nodes**, updated as necessary.
+* **layouts/section/item.html**,
+ * For Enlive, replacing an HTML element with the id **"body"** with the view, and then applying **controllers.section/item-layout(rc nodes)** as a transform, if it exists.
+ * For Selmer, replacing **{{body}}** with the view (and not calling any transforms).
+* **layouts/section.html**,
+ * For Enlive, replacing an HTML element with the id **"body"** with the view so far, and then applying **controllers.section/layout(rc nodes)** as a transform, if it exists.
+ * For Selmer, replacing **{{body}}** with the view so far.
+* **layouts/default.html**,
+ * For Enlive, replacing an HTML element with the id **"body"** with the view so far, and then applying the function provided as the **:layout** element of the configuration as a transform, if it was specified.
+ * For Selmer, replacing **{{body}}** with the view so far. The **:layout** configuration is ignored.
+
+For Enlive, each of the layout functions should return the **nodes**, updated as necessary.
 
 Any controller function also has access to the the FW/1 API:
 
@@ -70,6 +81,15 @@ In addition FW/1 adds:
 * **append-attr(attr v)** - appends **v** to the value of the specified attribute **attr** (useful to append data to **href** links).
 * **prepend-attr(attr v)** - prepends **v** to the value of the specified attribute **attr** (useful to prepend protocol / domain to **href** links).
 
+The following symbols from Selmer are exposed as aliases via the FW/1 API:
+
+* **add-tag!**, **add-filter!**
+
+By default, FW/1 adds **empty?** as a filter with the same name so the following is possible out of the box:
+<pre>
+{% if some-var|empty? %}There are none!{% endif %}
+</pre>
+
 You can start the server on port 8080 with:
 
 <pre>lein run -m usermanager.main</pre>
@@ -78,30 +98,25 @@ You can specify a different port like this:
 
 <pre>PORT=8111 lein run -m usermanager.main</pre>
 
-In fw1-test.core, the call to (fw1/start) can be passed a map of configuration parameters:
+In your main namespace, the call to **(fw1/start)** can be passed a map of configuration parameters:
 
-* **:after** - a function (taking / returning **rc**) which should be called after invoking any controller
+* **:after** - a function (taking / returning **rc**) which will be called after invoking any controller
 * **:application-key** - the namespace prefix for the application, default none.
-* **:before** - a function (taking / returning **rc**) which should be called before invoking any controller
+* **:before** - a function (taking / returning **rc**) which will be called before invoking any controller
 * **:default-section** - the _section_ used if none is present in the URL, default **"main"**.
 * **:default-item** - the _item_ used if none is present in the URL, default **"default"**.
 * **:error** - the action - _"section.item"_ - to execute if an exception is thrown from the initial request, defaults to **:default-section** value and **"error"** _[untested]_.
 * **:home** - the _"section.item"_ pair used for the / URL, defaults to **:default-section** and **:default-item** values.
-* **:layout** - specify a transform function for the site-wide layout, if needed (default none).
+* **:layout** - specify a transform function for the site-wide layout, if needed (default none). Enlive only. Selmer ignores this.
 * **:password** - specify a password for the application reload URL flag, default **"secret"** - see also **:reload**.
 * **:reload** - specify an **rc** key for the application reload URL flag, default **:reload** - see also **:password**.
 * **:reload-application-on-every-request** - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
+* **:selmer-tags*** - if you are using the Selmer templating engine, you can specify a map that is passed to the Selmer parser to override what characters are used to identify tags, filters
+* **:suffix** - the file extension used for views and layouts. Default is **"html"**.
+* **:template** - the templating engine used. Legal values are **:enlive** and **:selmer**. Default is **:enlive**.
 
-To create your own FW/1 application, use Leiningen to create a new project, edit **project.clj** to add a dependency on **[framework-one "0.1.0"]** (or later, check on Clojars!) and then you'll need a "main" driver file that looks something like this (modulo the namespace):
+To create your own FW/1 application, use Leiningen to create a new fw1 project:
 <pre>
-(ns main
-  (:require [framework.one :as fw1])
-  (:use [ring.adapter.jetty])
-  (:use [ring.middleware.reload]))
-
-(defn -main[]
-  (let [port (Integer/parseInt (get (System/getenv) "PORT" "8080"))] 
-    (run-jetty
-      (fw1/start) ;; configuration can go here: (fw1/start :password "abracadabra" :reload "magic")
-      {:port port})))</pre>
-At a minimum you'll want **views/main/default.html** containing your default application's page (HTML).
+lein new fw1 myapp
+</pre>
+Edit the **main.clj** file to specify additional configuration, such as the template engine.
