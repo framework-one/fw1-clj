@@ -104,11 +104,17 @@
   (rest (.split req "/")))
 
 (defn- compile-route [req]
-  (map (fn [part]
-         (if (.startsWith part ":")
-           (keyword (.substring part 1))
-           part))
-       (parts req)))
+  (let [verb? (.startsWith req "$")
+        verb (if verb?
+               (cond (.startsWith req "$GET") :get
+                     (.startsWith req "$POST") :post
+                     :else :any))]
+    [verb
+     (map (fn [part]
+            (if (.startsWith part ":")
+              (keyword (.substring part 1))
+              part))
+          (parts req))]))
 
 (defn- match-part [p r]
   (cond
@@ -124,8 +130,10 @@
                part))
            route) tail))
 
-(defn- matches-route [compiled-url compiled-route]
-  (if (empty? compiled-route)
+(defn- matches-route [compiled-url method [verb compiled-route]]
+  (if (or (empty? compiled-route)
+          (and (not= :any verb)
+               (not= verb method)))
     [::empty]
     (take-while identity
                 (map match-part
@@ -135,11 +143,11 @@
 (defn- pre-compile-routes [routes]
   (let [all-routes (apply concat routes)]
     [(map compile-route (map first all-routes))
-     (map compile-route (map second all-routes))]))
+     (map (comp second compile-route) (map second all-routes))]))
 
-(defn- process-routes [routes new-routes url]
-  (let [url (compile-route url)
-        matching (map (partial matches-route url) routes)
+(defn- process-routes [routes new-routes url method]
+  (let [[_ url] (compile-route url)
+        matching (map (partial matches-route url method) routes)
         no-matches (count (take-while empty? matching))
         matches (first (drop no-matches matching))
         lookup (reduce (fn [a b]
@@ -279,7 +287,7 @@
 (defn- render-request [req]
   (let [config @config
         [routes new-routes] (:routes config)
-        route (process-routes routes new-routes (:uri req))
+        route (process-routes routes new-routes (:uri req) (:request-method req))
         rc (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
         [section item] (get-section-item route)
         controller-ns (symbol (str (stem ".") "controllers." section))
@@ -342,7 +350,7 @@
                   :reload-application-on-every-request false
                   :template :enlive ; or :selmer
                   :suffix "html" ; views / layouts would be .html
-                  :version "0.2.3"}
+                  :version "0.2.4-SNAPSHOT"}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
     (when (= :selmer (:template my-config))
       (selmer.filters/add-filter! :empty? empty?))
