@@ -181,7 +181,7 @@
         (view-process rc view-nodes)
         view-nodes)
       (try
-        (selmer.parser/render-file view-nodes rc)
+        (selmer.parser/render-file view-nodes rc (:selmer-tags @config))
         (catch Exception _
           nil)))))
 
@@ -194,7 +194,9 @@
           layout-nodes))
       nodes)
     (try
-      (selmer.parser/render-file layout-nodes (assoc rc :body [:safe nodes]))
+      (selmer.parser/render-file layout-nodes
+                                 (assoc rc :body [:safe nodes])
+                                 (:selmer-tags @config))
       (catch Exception _
         nodes))))
 
