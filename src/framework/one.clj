@@ -26,6 +26,15 @@
 
 (def ^:private config (atom {}))
 
+;; bridge in a couple of very useful Selmer symbols
+
+(intern *ns* (with-meta 'add-tag!
+               (meta #'selmer.parser/add-tag!))
+        (deref #'selmer.parser/add-tag!))
+(intern *ns* (with-meta 'add-filter!
+               (meta #'selmer.filters/add-filter!))
+        (deref #'selmer.filters/add-filter!))
+
 ;; Enlive bridge
 (def ^:private enlive-symbols
   ['append 'at 'clone-for 'content 'do-> 'html-content 'prepend 'remove-class 'set-attr 'substitute])
