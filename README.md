@@ -108,6 +108,7 @@ In your main namespace, the call to **(fw1/start)** can be passed a map of confi
 * **:error** - the action - _"section.item"_ - to execute if an exception is thrown from the initial request, defaults to **:default-section** value and **"error"** _[untested]_.
 * **:home** - the _"section.item"_ pair used for the / URL, defaults to **:default-section** and **:default-item** values.
 * **:layout** - specify a transform function for the site-wide layout, if needed (default none). Enlive only. Selmer ignores this.
+* **:middleware** - specify additional Ring-compatible middleware to use. By default, this is prepended to the default list (params, flash, session, resource). The behavior can be changed by specifying a keyword at the start of the list of additional middleware: **:append**, **:prepend**, **:replace**.
 * **:password** - specify a password for the application reload URL flag, default **"secret"** - see also **:reload**.
 * **:reload** - specify an **rc** key for the application reload URL flag, default **:reload** - see also **:password**.
 * **:reload-application-on-every-request** - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
