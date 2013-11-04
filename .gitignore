@@ -10,3 +10,4 @@ pom.xml
 .lein-failures
 /target/
 /pom.xml.asc
+/.nrepl-port
