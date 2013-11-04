@@ -315,12 +315,21 @@
              :exception e
              :uri (str "/" (first (:error config)) "/" (second (:error config))))))))))
 
+;; convenient handles to Ring's middleware that we use:
+
+(def wrap-params   ring-p/wrap-params)
+(def wrap-flash    ring-f/wrap-flash)
+(def wrap-session  ring-s/wrap-session)
+(def wrap-resource #(ring-r/wrap-resource % (stem "/")))
+
+(def ^:private default-middleware
+  "The default set of Ring middleware we apply in FW/1"
+  [wrap-params wrap-flash wrap-session wrap-resource])
+
 (defn- wrapper [req]
-  ((-> controller
-       ring-p/wrap-params
-       ring-f/wrap-flash
-       ring-s/wrap-session
-       (ring-r/wrap-resource (stem "/"))) req))
+  ((reduce (fn [handler middleware] (middleware handler))
+           controller
+           (:middleware @config)) req))
 
 (comment "Example of routes"
 (let [[routes new-routes] (pre-compile-routes
@@ -338,7 +347,14 @@
          :home  (if (:home options)
                   (clojure.string/split (:home options) #"\.")
                   [(:default-section options) (:default-item options)])
-         :routes (pre-compile-routes (:routes options))))
+         :routes (pre-compile-routes (:routes options))
+         :middleware (if-let [middleware (:middleware options)]
+                       (condp = (first middleware)
+                         :append (concat default-middleware (rest middleware))
+                         :replace (rest middleware)
+                         :prepend (concat (rest middleware) default-middleware)
+                         (concat middleware default-middleware))
+                       default-middleware)))
 
 (defn start [& app-config]
   (let [defaults {:after identity
