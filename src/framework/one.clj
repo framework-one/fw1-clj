@@ -255,7 +255,7 @@
   (with-out-str (xml/emit (xml/sexp-as-element expr) *out*)))
 
 (def ^:private render-types
-  {:json {:type "application/javascript; charset=utf-8"
+  {:json {:type "application/json; charset=utf-8"
           :body json/write-str}
    :text {:type "text/plain; charset=utf-8"
           :body identity}
