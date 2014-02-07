@@ -42,7 +42,7 @@ Then FW/1 will look for an HTML view template:
 
 * **views/section/item.html**
 
-The suffix can be controlled by the **:suffix** configuration option. In the user manager example, you'll see an Enlive version using the default **"html"** configuration and a Selmer version using **:template :selmer** and **:suffix "tpl"**.
+The suffix can be controlled by the **:suffix** configuration option. In the user manager example, you'll see an Enlive version using **:template :enlive** the default **"html"** configuration and a Selmer version using the default **:selmer** configuration and **:suffix "tpl"**.
 
 When using Enlive, if **controllers.section/item-view(rc nodes)** exists, FW/1 will call that as an Enlive transform on the view template. A view function should return the **nodes**, updated as necessary.
 
@@ -64,6 +64,8 @@ Any controller function also has access to the the FW/1 API:
 
 * **cookie(rc name)** - returns the value of **name** from the cookie scope
 * **cookie(rc name value)** - sets **name** to **value** in the cookie scope, and returns the updated **rc**
+* **event(rc name)** - returns the value of **name** from the event scope (**:action**, **:section**, **:item**, or **:config**)
+* **event(rc name value)** - sets **name** to **value** in the event scope, and returns the updated **rc**
 * **flash(rc name)** - returns the value of **name** from the flash scope
 * **flash(rc name value)** - sets **name** to **value** in the flash scope, and returns the updated **rc**
 * **redirect(rc url)** - returns **rc** containing information to indicate a redirect to the specified **url**.
@@ -114,7 +116,7 @@ In your main namespace, the call to **(fw1/start)** can be passed a map of confi
 * **:reload-application-on-every-request** - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
 * **:selmer-tags*** - if you are using the Selmer templating engine, you can specify a map that is passed to the Selmer parser to override what characters are used to identify tags, filters
 * **:suffix** - the file extension used for views and layouts. Default is **"html"**.
-* **:template** - the templating engine used. Legal values are **:enlive** and **:selmer**. Default is **:enlive**.
+* **:template** - the templating engine used. Legal values are **:enlive** and **:selmer**. Default is **:selmer**.
 
 To create your own FW/1 application, use Leiningen to create a new fw1 project:
 <pre>

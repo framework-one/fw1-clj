@@ -7,7 +7,6 @@
     (run-jetty
       (fw1/start :application-key "usermanager"
                  :home "user.default"
-                 :template :selmer
                  :suffix "tpl"
                  :before (fn [rc]
                            (when (fw1/reload? rc)

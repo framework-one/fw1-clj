@@ -1,4 +1,4 @@
-;; Framework One (FW/1) Copyright (c) 2012-2013 Sean Corfield
+;; Framework One (FW/1) Copyright (c) 2012-2014 Sean Corfield
 ;;
 ;; Licensed under the Apache License, Version 2.0 (the "License");
 ;; you may not use this file except in compliance with the License.
@@ -70,6 +70,8 @@
 ;; (start & config) - entry point to the framework
 
 (def cookie (scope-access :cookies))
+
+(def event (scope-access ::event))
 
 (def flash (scope-access :flash))
 
@@ -292,7 +294,13 @@
         [section item] (get-section-item route)
         controller-ns (symbol (str (stem ".") "controllers." section))
         _ (require-controller rc controller-ns)
-        rc (reduce (partial apply-controller controller-ns) rc [:before "before" item "after" :after])]
+        rc (reduce (partial apply-controller controller-ns)
+                   (-> rc
+                       (event :action (str section "." item))
+                       (event :section section)
+                       (event :item item)
+                       (event :config config))
+                   [:before "before" item "after" :after])]
     (if-let [redirect (::redirect rc)]
       redirect
       (if-let [render-expr (::render rc)]
@@ -364,9 +372,9 @@
                   :password "secret"
                   :reload :reload
                   :reload-application-on-every-request false
-                  :template :enlive ; or :selmer
+                  :template :selmer
                   :suffix "html" ; views / layouts would be .html
-                  :version "0.2.4-SNAPSHOT"}
+                  :version "0.3.0"}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
     (when (= :selmer (:template my-config))
       (selmer.filters/add-filter! :empty? empty?))

@@ -7,6 +7,7 @@
     (run-jetty
       (fw1/start :application-key "usermanager"
                  :home "user.default"
+                 :template :enlive
                  :before (fn [rc]
                            (when (fw1/reload? rc)
                              (require 'usermanager.model.user-manager :reload))
