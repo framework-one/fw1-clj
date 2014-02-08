@@ -58,8 +58,8 @@
 ;; scope access utility
 (defn- scope-access [scope]
   (fn
-    ([rc n] (get-in rc [scope n]))
-    ([rc n v] (assoc-in rc [scope n] v))))
+    ([rc n] (get-in rc [::request scope n]))
+    ([rc n v] (assoc-in rc [::request scope n] v))))
 
 ;; render data support
 (defn- render-data [rc as expr]
@@ -286,26 +286,41 @@
       (:home config)
       [(first route) (or (second route) (:default-item config))])))
 
+(defn- pack-request [rc req]
+  (reduce (fn [m k]
+            (assoc-in m [::request k] (or (k req) {})))
+          rc
+          [:session :cookies :flash]))
+
+(defn- unpack-response
+  "Given a request context and a response, return the response with Ring data added."
+  [rc resp]
+  (reduce (fn [m k]
+            (assoc m k (get-in rc [::request k])))
+          resp
+          [:session :cookies :flash]))
+
 (defn- render-request [req]
   (let [config @config
         [routes new-routes] (:routes config)
         route (process-routes routes new-routes (:uri req) (:request-method req))
-        rc (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
         [section item] (get-section-item route)
+        rc (-> (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
+               (pack-request req)
+               (event :action  (str section "." item))
+               (event :section section)
+               (event :item    item))
         controller-ns (symbol (str (stem ".") "controllers." section))
         _ (require-controller rc controller-ns)
         rc (reduce (partial apply-controller controller-ns)
-                   (-> rc
-                       (event :action (str section "." item))
-                       (event :section section)
-                       (event :item item)
-                       (event :config config))
+                   rc
                    [:before "before" item "after" :after])]
-    (if-let [redirect (::redirect rc)]
-      redirect
-      (if-let [render-expr (::render rc)]
-        (render-data-response render-expr)
-        (render-page rc controller-ns section item)))))
+    (->> (if-let [redirect (::redirect rc)]
+           redirect
+           (if-let [render-expr (::render rc)]
+             (render-data-response render-expr)
+             (render-page rc controller-ns section item)))
+         (unpack-response rc))))
 
 (defn- controller [req]
   ;; since favicon.ico is commonly requested but often not present, we special case
@@ -333,11 +348,6 @@
 (def ^:private default-middleware
   "The default set of Ring middleware we apply in FW/1"
   [wrap-params wrap-flash wrap-session wrap-resource])
-
-(defn- wrapper [req]
-  ((reduce (fn [handler middleware] (middleware handler))
-           controller
-           (:middleware @config)) req))
 
 (comment "Example of routes"
 (let [[routes new-routes] (pre-compile-routes
@@ -379,4 +389,6 @@
     (when (= :selmer (:template my-config))
       (selmer.filters/add-filter! :empty? empty?))
     (reset! config my-config)
-    (var wrapper)))
+    (reduce (fn [handler middleware] (middleware handler))
+            controller
+            (:middleware my-config))))
