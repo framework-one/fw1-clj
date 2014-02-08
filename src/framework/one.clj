@@ -16,6 +16,7 @@
   (:require [clojure.walk :as walk]
             [clojure.data.json :as json]
             [clojure.data.xml :as xml]
+            [clojure.stacktrace :as stacktrace]
             [ring.middleware.flash :as ring-f]
             [ring.middleware.params :as ring-p]
             [ring.middleware.resource :as ring-r]
@@ -334,12 +335,14 @@
       (render-request req)
       (catch Exception e
         (if (::handling-exception req)
-          (throw e)
-          (controller
-           (assoc req
-             ::handling-exception true
-             :exception e
-             :uri (str "/" (first (:error config)) "/" (second (:error config))))))))))
+          (do
+            (stacktrace/print-stack-trace e)
+            {:status 500
+             :body (str e)})
+          (controller (-> req
+                          (assoc ::handling-exception true)
+                          (assoc :uri (str "/" (first (:error @config)) "/" (second (:error @config))))
+                          (assoc-in [:params :exception] e))))))))
 
 ;; convenient handles to Ring's middleware that we use:
 
