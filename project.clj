@@ -1,4 +1,4 @@
-(defproject framework-one "0.3.2"
+(defproject framework-one "0.3.3"
   :description "A lightweight, convention-based MVC web framework."
   :url "https://github.com/framework-one/fw1-clj/"
   :license {:name "Eclipse Public License"

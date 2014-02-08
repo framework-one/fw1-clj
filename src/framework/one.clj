@@ -396,7 +396,7 @@
                   :reload-application-on-every-request false
                   :template :selmer
                   :suffix "html" ; views / layouts would be .html
-                  :version "0.3.2"}
+                  :version "0.3.3"}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
     (when (= :selmer (:template my-config))
       (selmer.filters/add-filter! :empty? empty?))
