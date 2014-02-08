@@ -312,7 +312,7 @@
                (event :action  (str section "." item))
                (event :section section)
                (event :item    item)
-               (event :config  @config))
+               (event :config  config))
         controller-ns (symbol (str (stem ".") "controllers." section))
         _ (require-controller rc controller-ns)
         rc (reduce (partial apply-controller controller-ns)
@@ -391,7 +391,7 @@
                   :reload-application-on-every-request false
                   :template :selmer
                   :suffix "html" ; views / layouts would be .html
-                  :version "0.3.1"}
+                  :version "0.3.2"}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
     (when (= :selmer (:template my-config))
       (selmer.filters/add-filter! :empty? empty?))
