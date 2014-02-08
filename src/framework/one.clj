@@ -20,6 +20,8 @@
             [ring.middleware.params :as ring-p]
             [ring.middleware.resource :as ring-r]
             [ring.middleware.session :as ring-s]
+            [ring.middleware.session.cookie :refer [cookie-store]]
+            [ring.middleware.session.memory :refer [memory-store]]
             [net.cgrand.enlive-html :as html]
             [selmer.parser]
             [selmer.filters]))
@@ -342,8 +344,12 @@
 
 (def wrap-params   ring-p/wrap-params)
 (def wrap-flash    ring-f/wrap-flash)
-(def wrap-session  ring-s/wrap-session)
 (def wrap-resource #(ring-r/wrap-resource % (stem "/")))
+
+(defn- wrap-session [h]
+  (cond (= :memory (:session-store @config)) (ring-s/wrap-session h {:store (memory-store)})
+        (= :cookie (:session-store @config)) (ring-s/wrap-session h {:store (cookie-store)})
+        :else (ring-s/wrap-session h)))
 
 (def ^:private default-middleware
   "The default set of Ring middleware we apply in FW/1"
@@ -384,7 +390,7 @@
                   :reload-application-on-every-request false
                   :template :selmer
                   :suffix "html" ; views / layouts would be .html
-                  :version "0.3.0"}
+                  :version "0.3.1"}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
     (when (= :selmer (:template my-config))
       (selmer.filters/add-filter! :empty? empty?))

@@ -115,6 +115,7 @@ In your main namespace, the call to **(fw1/start)** can be passed a map of confi
 * **:reload** - specify an **rc** key for the application reload URL flag, default **:reload** - see also **:password**.
 * **:reload-application-on-every-request** - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
 * **:selmer-tags*** - if you are using the Selmer templating engine, you can specify a map that is passed to the Selmer parser to override what characters are used to identify tags, filters
+* **:session-store** - specify storage used for Ring session storage. Legal values are **:memory** and **:cookie**. Default is whatever is Ring's default (which is memory storage as of this writing).
 * **:suffix** - the file extension used for views and layouts. Default is **"html"**.
 * **:template** - the templating engine used. Legal values are **:enlive** and **:selmer**. Default is **:selmer**.
 
