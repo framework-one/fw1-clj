@@ -290,10 +290,12 @@
       [(first route) (or (second route) (:default-item config))])))
 
 (defn- pack-request [rc req]
-  (reduce (fn [m k]
-            (assoc-in m [::request k] (or (k req) {})))
-          rc
-          [:session :cookies :flash]))
+  (merge
+   (reduce (fn [m k]
+             (assoc-in m [::request k] (or (k req) {})))
+           rc
+           [:session :cookies])
+   (:flash req)))
 
 (defn- unpack-response
   "Given a request context and a response, return the response with Ring data added."
