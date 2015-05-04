@@ -1,4 +1,4 @@
-;; Framework One (FW/1) Copyright (c) 2012-2014 Sean Corfield
+;; Framework One (FW/1) Copyright (c) 2012-2015 Sean Corfield
 ;;
 ;; Licensed under the Apache License, Version 2.0 (the "License");
 ;; you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@
             [ring.middleware.session :as ring-s]
             [ring.middleware.session.cookie :refer [cookie-store]]
             [ring.middleware.session.memory :refer [memory-store]]
-            [net.cgrand.enlive-html :as html]
             [selmer.parser]
             [selmer.filters]))
 
@@ -39,24 +38,6 @@
 (intern *ns* (with-meta 'add-filter!
                (meta #'selmer.filters/add-filter!))
         (deref #'selmer.filters/add-filter!))
-
-;; Enlive bridge
-(def ^:private enlive-symbols
-  ['append 'at 'clone-for 'content 'do-> 'html-content 'prepend 'remove-class 'set-attr 'substitute])
-
-(defmacro enlive-alias ^:private [sym]
-  `(let [enlive-sym# (resolve (symbol (str "html/" ~sym)))]
-     (intern *ns* (with-meta ~sym (meta enlive-sym#)) (deref enlive-sym#))))
-
-(doseq [sym enlive-symbols]
-  (enlive-alias sym))
-
-;; Enlive extensions
-(defn append-attr [attr v]
-  #((set-attr attr (str (get-in % [:attrs attr] "") v)) %))
-
-(defn prepend-attr [attr v]
-  #((set-attr attr (str v (get-in % [:attrs attr] ""))) %))
 
 ;; scope access utility
 (defn- scope-access [scope]
@@ -103,8 +84,6 @@
   (try (Long/parseLong l) (catch Exception _ 0)))
 
 ;; FW/1 implementation
-(def ^:private node-cache (atom {}))
-
 (defn- parts [req]
   (rest (.split req "/")))
 
@@ -164,16 +143,6 @@
 (defn- ->fs [path]
   (.replaceAll path "-" "_"))
 
-(defn- get-cached-nodes [node-key node-path]
-  (if (= :enlive (:template @config))
-    (or (get @node-cache node-key)
-        (let [nodes (try
-                      (html/html-resource (->fs node-path))
-                      (catch Exception _ nil))]
-          (swap! node-cache #(assoc % node-key nodes))
-          nodes))
-    node-path))
-
 (defn- as-map [route]
   (apply hash-map
          (if (even? (count route))
@@ -188,8 +157,7 @@
 
 (defn- get-view-nodes [section item]
   (let [config @config]
-    (get-cached-nodes [:view section item]
-                      (str (stem "/") "views/" section "/" item "." (:suffix config)))))
+    (str (stem "/") "views/" section "/" item "." (:suffix config))))
 
 (defn- apply-controller [controller-ns rc item]
   (if (or (::redirect rc)
@@ -199,57 +167,37 @@
       (if-let [f (item @config)] (f rc) rc)
       (if-let [f (resolve (symbol (str controller-ns "/" item)))] (f rc) rc))))
 
-(defn- get-layout-nodes [controller-ns section item]
+(defn- get-layout-nodes [section item]
   (let [config @config
         dot-html (str "." (:suffix config))]
-    [[(get-cached-nodes [:layout section item]
-                        (str (stem "/") "layouts/" section "/" item dot-html))
-      (resolve (symbol (str controller-ns "/" item "-layout")))]
-     [(get-cached-nodes [:layout section]
-                        (str (stem "/") "layouts/" section dot-html))
-      (resolve (symbol (str controller-ns "/layout")))]
-     [(get-cached-nodes [:layout]
-                        (str (stem "/") "layouts/default" dot-html))
-      (:layout config)]]))
+    [(str (stem "/") "layouts/" section "/" item dot-html)
+     (str (stem "/") "layouts/" section dot-html)
+     (str (stem "/") "layouts/default" dot-html)]))
 
-(defn- apply-view [rc controller-ns section item]
+(defn- apply-view [rc section item]
   (when-let [view-nodes (get-view-nodes section item)]
-    (if (= :enlive (:template @config))
-      (if-let [view-process (resolve (symbol (str controller-ns "/" item "-view")))]
-        (view-process rc view-nodes)
-        view-nodes)
-      (try
-        (selmer.parser/render-file view-nodes rc (:selmer-tags @config))
-        (catch Exception _
-          nil)))))
-
-(defn- apply-layout [rc nodes [layout-nodes layout-process]]
-  (if (= :enlive (:template @config))
-    (if layout-nodes
-      (let [layout-nodes (at layout-nodes [:#body] (substitute (-> nodes first :content first :content)))]
-        (if layout-process
-          (layout-process rc layout-nodes)
-          layout-nodes))
-      nodes)
     (try
-      (selmer.parser/render-file layout-nodes
-                                 (assoc rc :body [:safe nodes])
-                                 (:selmer-tags @config))
+      (selmer.parser/render-file view-nodes rc (:selmer-tags @config))
       (catch Exception _
-        nodes))))
+        nil))))
+
+(defn- apply-layout [rc nodes layout-nodes]
+  (try
+    (selmer.parser/render-file layout-nodes
+                               (assoc rc :body [:safe nodes])
+                               (:selmer-tags @config))
+    (catch Exception _
+      nodes)))
 
 (defn- not-found []
   {:status 404
    :header {"Content-Type" "text/html; charset=utf-8"}
    :body "Not Found"})
 
-(defn- render-page [rc controller-ns section item]
-  (if-let [view-render (apply-view rc controller-ns section item)]
-    (let [layout-cascade (get-layout-nodes controller-ns section item)
-          final-render (reduce (partial apply-layout rc) view-render layout-cascade)
-          final-html (if (= :enlive (:template @config))
-                       (apply str (html/emit* final-render))
-                       final-render)]
+(defn- render-page [rc section item]
+  (if-let [view-render (apply-view rc section item)]
+    (let [layout-cascade (get-layout-nodes section item)
+          final-html (reduce (partial apply-layout rc) view-render layout-cascade)]
       {:status 200
        :headers {"Content-Type" "text/html; charset=utf-8"}
        :body final-html})
@@ -276,9 +224,7 @@
 (defn- require-controller [rc controller-ns]
   (try
     (if (reload? rc)
-      (do
-        (reset! node-cache {})
-        (require controller-ns :reload))
+      (require controller-ns :reload)
       (require controller-ns))
     (catch Exception _
       nil)))
@@ -325,7 +271,7 @@
            redirect
            (if-let [render-expr (::render rc)]
              (render-data-response render-expr)
-             (render-page rc controller-ns section item)))
+             (render-page rc section item)))
          (unpack-response rc))))
 
 (defn- controller [req]
@@ -394,12 +340,10 @@
                   :password "secret"
                   :reload :reload
                   :reload-application-on-every-request false
-                  :template :selmer
                   :suffix "html" ; views / layouts would be .html
-                  :version "0.3.3"}
+                  :version "0.4.0"}
         my-config (framework-defaults (merge defaults (apply hash-map app-config)))]
-    (when (= :selmer (:template my-config))
-      (selmer.filters/add-filter! :empty? empty?))
+    (selmer.filters/add-filter! :empty? empty?)
     (reset! config my-config)
     (reduce (fn [handler middleware] (middleware handler))
             controller
