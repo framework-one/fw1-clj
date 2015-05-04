@@ -6,7 +6,7 @@
   :dev-resources-path "examples"
   :profiles {:dev {:resource-paths ["examples"]
                    :dependencies []}}
-  :dependencies [[org.clojure/clojure "1.5.1"]
+  :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/data.json "0.2.4"]
                  [org.clojure/data.xml "0.0.7"]
                  [ring "1.2.1"]
