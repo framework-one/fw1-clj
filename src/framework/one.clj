@@ -59,7 +59,7 @@
   (assoc rc ::redirect {:status 302 :headers {"Location" url}}))
 
 (defn reload? [rc]
-  (let [config (:config rc)
+  (let [config (event rc :config)
         reload (get rc (:reload config))
         password (:password config)]
     (or (and reload password (= reload password))
