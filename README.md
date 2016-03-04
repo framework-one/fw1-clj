@@ -22,7 +22,7 @@ The standard file structure for a FW/1 application is:
 
 The easiest way to get started with FW/1 is to use the
 [fw1-template](https://github.com/framework-one/fw1-template) template
-(plugin) for Leiningen. The template can create a basic FW/1 skeleton
+for Boot. The template can create a basic FW/1 skeleton
 project for you that "just works" and provides the directory structure
 and some basic files for you to get started with. 
 
@@ -73,13 +73,13 @@ By default, FW/1 adds `empty?` as a filter with the same name so the following i
 
     {% if some-var|empty? %}There are none!{% endif %}
 
-You can start the server on port 8080 with:
+You can start the server on port 8080, running the User Manager example, with:
 
-    lein run -m usermanager.main
+    boot run
 
 You can specify a different port like this:
 
-    PORT=8111 lein run -m usermanager.main
+    PORT=8111 boot run
 
 In your main namespace, the call to `(fw1/start)` can be passed a map of configuration parameters:
 
@@ -94,12 +94,12 @@ In your main namespace, the call to `(fw1/start)` can be passed a map of configu
 * `:password` - specify a password for the application reload URL flag, default `"secret"` - see also `:reload`.
 * `:reload` - specify an `rc` key for the application reload URL flag, default `:reload` - see also `:password`.
 * `:reload-application-on-every-request` - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
-* `:selmer-tags` - if you are using the Selmer templating engine, you can specify a map that is passed to the Selmer parser to override what characters are used to identify tags, filters
+* `:selmer-tags` - you can specify a map that is passed to the Selmer parser to override what characters are used to identify tags, filters
 * `:session-store` - specify storage used for Ring session storage. Legal values are `:memory` and `:cookie`. Default is whatever is Ring's default (which is memory storage as of this writing).
 * `:suffix` - the file extension used for views and layouts. Default is `"html"`.
 
-To create your own FW/1 application, use Leiningen to create a new fw1 project:
+To create your own FW/1 application, use Boot to create a new fw1 project:
 
-    lein new fw1 myapp
+    boot -s seancorfield/boot-new new -t fw1 -n myapp
 
 Edit the `main.clj` file to specify additional configuration, such as the template engine.
