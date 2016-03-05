@@ -55,6 +55,16 @@
 
 (def flash (scope-access :flash))
 
+(defn header
+  "Either read the request headers or write the response headers."
+  ([rc n] (get-in rc [::request :req-headers n]))
+  ([rc n v] (assoc-in rc [::request :headers n] v)))
+
+(defn remote-addr
+  "Return the remote IP address for this request."
+  [rc]
+  (get-in rc [::request :remote-addr]))
+
 (defn redirect [rc url]
   (assoc rc ::redirect {:status 302 :headers {"Location" url}}))
 
@@ -227,21 +237,30 @@
     (:home config)
     [(first route) (or (second route) (:default-item config))]))
 
-(defn- pack-request [rc req]
+(defn- pack-request
+  "Given a request context and a Ring request, return the request context with certain
+  Ring data embedded in it. In particular, we keep request headers separate to any
+  response headers (and merge those in unpack-response below)."
+  [rc req]
   (merge
    (reduce (fn [m k]
-             (assoc-in m [::request k] (or (k req) {})))
+             (assoc-in m
+                       [::request (if (= :headers k) :req-headers k)]
+                       (or (k req) {})))
            rc
-           [:session :cookies])
+           [:session :cookies :remote-addr :headers])
    (:flash req)))
 
 (defn- unpack-response
-  "Given a request context and a response, return the response with Ring data added."
+  "Given a request context and a response, return the response with Ring data added.
+  By this point the response always has headers so we must add to those, not overwrite."
   [rc resp]
   (reduce (fn [m k]
-            (assoc m k (get-in rc [::request k])))
+            (if (= :headers k)
+              (update m k merge (get-in rc [::request k]))
+              (assoc m k (get-in rc [::request k]))))
           resp
-          [:session :cookies :flash]))
+          [:session :cookies :flash :headers]))
 
 (defn- render-request [config req]
   (let [[routes new-routes] (:routes config)
