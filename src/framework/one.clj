@@ -65,6 +65,13 @@
   [rc]
   (get-in rc [::request :remote-addr]))
 
+(defn servlet-request
+  "Return a fake HttpServletRequest that knows how to delegate to the rc."
+  [rc]
+  (proxy [javax.servlet.http.HttpServletRequest] []
+    (getParameter [name]
+      (if-let [v (get rc (keyword name))] (str v) nil))))
+
 (defn redirect [rc url]
   (assoc rc ::redirect {:status 302 :headers {"Location" url}}))
 
