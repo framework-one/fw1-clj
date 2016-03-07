@@ -1,4 +1,4 @@
-;; Framework One (FW/1) Copyright (c) 2012-2015 Sean Corfield
+;; Framework One (FW/1) Copyright (c) 2012-2016 Sean Corfield
 ;;
 ;; Licensed under the Apache License, Version 2.0 (the "License");
 ;; you may not use this file except in compliance with the License.
@@ -204,14 +204,17 @@
    :header {"Content-Type" "text/html; charset=utf-8"}
    :body "Not Found"})
 
-(defn- render-page [config rc section item]
+(defn- render-page [config rc section item exceptional?]
   (if-let [view-render (apply-view config rc section item)]
     (let [layout-cascade (get-layout-nodes config section item)
           final-html (reduce (partial apply-layout config rc) view-render layout-cascade)]
       {:status 200
        :headers {"Content-Type" "text/html; charset=utf-8"}
        :body final-html})
-    (not-found)))
+    (if exceptional?
+      {:status 500
+       :body (if-let [e (:exception rc)] (str e) "Unknown Error")}
+      (not-found))))
 
 (defn- as-xml
   [expr]
@@ -270,7 +273,8 @@
           [:session :cookies :flash :headers]))
 
 (defn- render-request [config req]
-  (let [[routes new-routes] (:routes config)
+  (let [exceptional? (::handling-exception req)
+        [routes new-routes] (:routes config)
         route (process-routes routes new-routes (:uri req) (:request-method req))
         [section item] (get-section-item config route)
         rc (-> (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
@@ -288,7 +292,7 @@
            redirect
            (if-let [render-expr (::render rc)]
              (render-data-response render-expr)
-             (render-page config rc section item)))
+             (render-page config rc section item exceptional?)))
          (unpack-response rc))))
 
 (defn- controller [config]
