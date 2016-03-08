@@ -13,18 +13,19 @@
 ;; limitations under the License.
 
 (ns framework.one
-  (:require [clojure.walk :as walk]
-            [clojure.data.json :as json]
+  (:require [clojure.data.json :as json]
             [clojure.data.xml :as xml]
             [clojure.stacktrace :as stacktrace]
+            [clojure.walk :as walk]
             [ring.middleware.flash :as ring-f]
             [ring.middleware.params :as ring-p]
             [ring.middleware.resource :as ring-r]
             [ring.middleware.session :as ring-s]
             [ring.middleware.session.cookie :refer [cookie-store]]
             [ring.middleware.session.memory :refer [memory-store]]
+            [selmer.filters]
             [selmer.parser]
-            [selmer.filters]))
+            [selmer.util :refer [resource-path]]))
 
 ;; bridge in a couple of very useful Selmer symbols
 
@@ -167,7 +168,7 @@
     (str app sep)
     ""))
 
-(defn- get-view-nodes [config section item]
+(defn- get-view-path [config section item]
   (str (stem config "/") "views/" section "/" item "." (:suffix config)))
 
 (defn- apply-controller [config controller-ns rc item]
@@ -178,26 +179,34 @@
       (if-let [f (item config)] (f rc) rc)
       (if-let [f (resolve (symbol (str controller-ns "/" item)))] (f rc) rc))))
 
-(defn- get-layout-nodes [config section item]
+(defn- get-layout-paths [config section item]
   (let [dot-html (str "." (:suffix config))]
-    [(str (stem config "/") "layouts/" section "/" item dot-html)
-     (str (stem config "/") "layouts/" section dot-html)
-     (str (stem config "/") "layouts/default" dot-html)]))
+    (filter resource-path
+            [(str (stem config "/") "layouts/" section "/" item dot-html)
+             (str (stem config "/") "layouts/" section dot-html)
+             (str (stem config "/") "layouts/default" dot-html)])))
 
-(defn- apply-view [config rc section item]
-  (when-let [view-nodes (get-view-nodes config section item)]
-    (try
-      (selmer.parser/render-file view-nodes rc (:selmer-tags config))
-      (catch Exception _ ; this should throw something?
-        nil))))
+(defn- apply-view [config rc section item exceptional?]
+  (let [view-path  (get-view-path config section item)
+        render-view (fn [] (selmer.parser/render-file view-path rc (:selmer-tags config)))]
+    (if exceptional?
+      ;; if we fail to render a view while processing an exception
+      ;; just treat the (error) view as not found so the original
+      ;; exception will be returned as a 500 error
+      (try (render-view) (catch Exception _))
+      (render-view))))
 
-(defn- apply-layout [config rc nodes layout-nodes]
-  (try
-    (selmer.parser/render-file layout-nodes
-                               (assoc rc :body [:safe nodes])
-                               (:selmer-tags config))
-    (catch Exception _ ; this should throw something?
-      nodes)))
+(defn- apply-layout [config rc exceptional? nodes layout-path]
+  (let [render-layout (fn []
+                        (selmer.parser/render-file layout-path
+                                                   (assoc rc :body [:safe nodes])
+                                                   (:selmer-tags config)))]
+    (if exceptional?
+      ;; if we fail to render a layout while processing an exception
+      ;; just treat the layout as not found so the original view will
+      ;; be returned unadorned
+      (try (render-layout) (catch Exception _ nodes))
+      (render-layout))))
 
 (defn- not-found []
   {:status 404
@@ -205,9 +214,9 @@
    :body "Not Found"})
 
 (defn- render-page [config rc section item exceptional?]
-  (if-let [view-render (apply-view config rc section item)]
-    (let [layout-cascade (get-layout-nodes config section item)
-          final-html (reduce (partial apply-layout config rc) view-render layout-cascade)]
+  (if-let [view-render (apply-view config rc section item exceptional?)]
+    (let [layout-cascade (get-layout-paths config section item)
+          final-html (reduce (partial apply-layout config rc exceptional?) view-render layout-cascade)]
       {:status 200
        :headers {"Content-Type" "text/html; charset=utf-8"}
        :body final-html})
