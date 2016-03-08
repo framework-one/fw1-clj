@@ -1,5 +1,5 @@
 (def project 'framework-one)
-(def version "0.5.1-SNAPSHOT")
+(def version "0.5.1")
 
 (task-options!
  pom {:project     project
