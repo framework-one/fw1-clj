@@ -3,14 +3,29 @@ FW/1 in Clojure
 
 This is a port from CFML to Clojure of Framework One (FW/1).
 
-TL;DR - Want to try it out on Heroku? http://corfield.org/entry/fw-1-user-manager-example-on-heroku
-
 FW/1 in Clojure is based on [Ring](https://github.com/ring-clojure/ring) and [Selmer](https://github.com/yogthos/Selmer).
 FW/1 is a lightweight, convention-based MVC framework.
-Controller functions and views are automatically selected based on standard URL patterns - with site sections and items within each section.
-Layouts are applied, if provided, in a cascade from item to section to site.
 
-The basic URL pattern is: `/section/item/arg1/value1/arg2/value2?arg3=value3</`
+The easiest way to get started with FW/1 is to use the
+[fw1-template](https://github.com/framework-one/fw1-template) template
+for Boot. The template can create a basic FW/1 skeleton
+project for you that "just works" and provides the directory structure
+and some basic files for you to get started with. 
+
+Assuming you have [Boot](http://boot-clj.com) installed, you can create a new skeleton FW/1 app like this:
+
+    boot -d seancorfield/boot-new new -t fw1 -n myfw1app
+
+This will create a skeleton FW/1 app in the `myfw1app` folder. You can run it like this:
+
+    cd myfw1app
+    PORT=8111 boot run
+
+If you omit the `PORT` environment variable, it will start up on port 8080 (and may conflict with any Tomcat or other process you have running).
+
+In a FW/1 application, Controller functions and Views are automatically located based on standard URL patterns - with site sections and items within each section. Layouts are applied, if provided, in a cascade from item to section to site.
+
+The basic URL pattern is: `/section/item/arg1/value1/arg2/value2?arg3=value3`
 
 The arg / value pairs from the URL are assembled into a map called the request context (and referred to as `rc` in the documentation).
 
@@ -20,15 +35,9 @@ The standard file structure for a FW/1 application is:
 * `layouts/` - contains per-_item_, per-_section_ and per-site layouts as needed.
 * `views/` - contains a folder for each _section_, containing an HTML view for each _item_.
 
-The easiest way to get started with FW/1 is to use the
-[fw1-template](https://github.com/framework-one/fw1-template) template
-for Boot. The template can create a basic FW/1 skeleton
-project for you that "just works" and provides the directory structure
-and some basic files for you to get started with. 
-
 Controllers can have _before(rc)_ and _after(rc)_ handler functions that apply to all requests in a _section_.
 
-A URL of <tt>/section/item</tt> will cause FW/1 to call:
+A URL of `/section/item` will cause FW/1 to call:
 
 * `(controllers.section/before rc)`, if defined.
 * `(controllers.section/item rc)`, if defined.
@@ -59,8 +68,11 @@ Any controller function also has access to the the FW/1 API:
 * `(event rc name value)` - sets `name` to `value` in the event scope, and returns the updated `rc`
 * `(flash rc name)` - returns the value of `name` from the flash scope
 * `(flash rc name value)` - sets `name` to `value` in the flash scope, and returns the updated `rc`
+* `(header rc name)` - return the value of the `name` HTTP header, or `nil` if no such header exists
+* `(header rc name value)` - sets the `name` HTTP header to `value` for the response, and returns the updated `rc`
 * `(redirect rc url)` - returns `rc` containing information to indicate a redirect to the specified `url`.
 * `(reload? rc)` - returns `true` if the current request includes URL parameters to force an application reload.
+* `(remote-addr rc)` - returns the IP address of the remote requestor (if available).
 * `(session rc name)` - returns the value of `name` from the session scope
 * `(session rc name value)` - sets `name` to `value` in the session scope, and returns the updated `rc`
 * `(to-long val)` - converts `val` to a long, returning zero if it cannot be converted (values in `rc` come in as strings so this is useful when you need a number instead and zero can be a sentinel for "no value").
@@ -73,7 +85,7 @@ By default, FW/1 adds `empty?` as a filter with the same name so the following i
 
     {% if some-var|empty? %}There are none!{% endif %}
 
-You can start the server on port 8080, running the User Manager example, with:
+As noted above, you can start the server on port 8080, running the User Manager example if you cloned this repository, with:
 
     boot run
 
@@ -81,7 +93,7 @@ You can specify a different port like this:
 
     PORT=8111 boot run
 
-In your main namespace, the call to `(fw1/start)` can be passed a map of configuration parameters:
+In your main namespace -- `main.clj` in the example here -- the call to `(fw1/start)` can be passed a map of configuration parameters:
 
 * `:after` - a function (taking / returning `rc`) which will be called after invoking any controller
 * `:application-key` - the namespace prefix for the application, default none.
@@ -97,9 +109,3 @@ In your main namespace, the call to `(fw1/start)` can be passed a map of configu
 * `:selmer-tags` - you can specify a map that is passed to the Selmer parser to override what characters are used to identify tags, filters
 * `:session-store` - specify storage used for Ring session storage. Legal values are `:memory` and `:cookie`. Default is whatever is Ring's default (which is memory storage as of this writing).
 * `:suffix` - the file extension used for views and layouts. Default is `"html"`.
-
-To create your own FW/1 application, use Boot to create a new fw1 project:
-
-    boot -s seancorfield/boot-new new -t fw1 -n myapp
-
-Edit the `main.clj` file to specify additional configuration, such as the template engine.
