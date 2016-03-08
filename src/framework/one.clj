@@ -188,7 +188,7 @@
   (when-let [view-nodes (get-view-nodes config section item)]
     (try
       (selmer.parser/render-file view-nodes rc (:selmer-tags config))
-      (catch Exception _
+      (catch Exception _ ; this should throw something?
         nil))))
 
 (defn- apply-layout [config rc nodes layout-nodes]
@@ -196,7 +196,7 @@
     (selmer.parser/render-file layout-nodes
                                (assoc rc :body [:safe nodes])
                                (:selmer-tags config))
-    (catch Exception _
+    (catch Exception _ ; this should throw something?
       nodes)))
 
 (defn- not-found []
@@ -239,7 +239,8 @@
     (if (reload? rc)
       (require controller-ns :reload)
       (require controller-ns))
-    (catch Exception _
+    (catch java.io.FileNotFoundException _
+      ;; missing controller OK; anything else should bubble up
       nil)))
 
 (defn- get-section-item [config route]
