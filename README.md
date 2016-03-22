@@ -93,7 +93,7 @@ You can specify a different port like this:
 
     PORT=8111 boot run
 
-In your main namespace -- `main.clj` in the example here -- the call to `(fw1/start)` can be passed a map of configuration parameters:
+In your main namespace -- `main.clj` in the example here -- the call to `(fw1/start)` can be passed an arbitrary number of configuration parameters:
 
 * `:after` - a function (taking / returning `rc`) which will be called after invoking any controller
 * `:application-key` - the namespace prefix for the application, default none.
@@ -109,3 +109,5 @@ In your main namespace -- `main.clj` in the example here -- the call to `(fw1/st
 * `:selmer-tags` - you can specify a map that is passed to the Selmer parser to override what characters are used to identify tags, filters
 * `:session-store` - specify storage used for Ring session storage. Legal values are `:memory` and `:cookie`. Default is whatever is Ring's default (which is memory storage as of this writing).
 * `:suffix` - the file extension used for views and layouts. Default is `"html"`.
+
+For example: `(fw1/start :default-section "hello" :default-item "world")` will tell FW/1 to use `hello.world` as the default action.
