@@ -93,7 +93,8 @@ You can specify a different port like this:
 
     PORT=8111 boot run
 
-In your main namespace -- `main.clj` in the example here -- the call to `(fw1/start)` can be passed an arbitrary number of configuration parameters:
+In your main namespace -- `main.clj` in the example here -- the call to `(fw1/start)` can be passed configuration parameters either
+as a map or as an arbitrary number of inline key / value pairs:
 
 * `:after` - a function (taking / returning `rc`) which will be called after invoking any controller
 * `:application-key` - the namespace prefix for the application, default none.
@@ -111,3 +112,4 @@ In your main namespace -- `main.clj` in the example here -- the call to `(fw1/st
 * `:suffix` - the file extension used for views and layouts. Default is `"html"`.
 
 For example: `(fw1/start :default-section "hello" :default-item "world")` will tell FW/1 to use `hello.world` as the default action.
+You could also say: `(fw1/start {:default-section "hello" :default-item "world"})`.
