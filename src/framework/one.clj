@@ -417,7 +417,7 @@
    :reload :reload
    :reload-application-on-every-request false
    :suffix "html" ; views / layouts would be .html
-   :version "0.4.0"})
+   :version "0.5.3-SNAPSHOT"})
 
 (defn start
   "Start the server. Optionally accepts either a map of configuration
