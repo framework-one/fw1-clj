@@ -420,17 +420,16 @@
    :version "0.4.0"})
 
 (defn start
-  "Start the server. Accepts either a map of configuration parameters
-  or inline config key / value pairs (for backward compatibility)."
-  [& app-config]
-  (let [app-config (if (keyword? (first app-config))
-                     (apply hash-map app-config)
-                     (first app-config))
-        options (merge default-options app-config)
-        dynamic-options (framework-defaults options)
-        config (update-in dynamic-options [:middleware]
-                          (merge-middleware dynamic-options))]
-    (selmer.filters/add-filter! :empty? empty?)
-    (reduce (fn [handler middleware] (middleware handler))
-            (controller config)
-            (:middleware config))))
+  "Start the server. Optionally accepts either a map of configuration
+  parameters or inline key / value pairs (for backward compatibility)."
+  ([] (start {}))
+  ([app-config]
+   (let [options (merge default-options app-config)
+         dynamic-options (framework-defaults options)
+         config (update-in dynamic-options [:middleware]
+                           (merge-middleware dynamic-options))]
+     (selmer.filters/add-filter! :empty? empty?)
+     (reduce (fn [handler middleware] (middleware handler))
+             (controller config)
+             (:middleware config))))
+  ([k v & more] (start (apply hash-map k v more))))

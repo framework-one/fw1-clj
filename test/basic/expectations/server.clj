@@ -8,3 +8,13 @@
                  200         status
                  "Default\n" body)
         ((fw1/start) {:uri "/"}))
+
+(expect (more-of {:keys [status body]}
+                 200         status
+                 "Test Item\n" body)
+        ((fw1/start :default-section "test" :default-item "item") {:uri "/"}))
+
+(expect (more-of {:keys [status body]}
+                 200         status
+                 "Test Item\n" body)
+        ((fw1/start {:default-section "test" :default-item "item"}) {:uri "/"}))
