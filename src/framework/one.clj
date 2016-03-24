@@ -27,7 +27,9 @@
             [selmer.parser]
             [selmer.util :refer [resource-path]]))
 
-;; bridge in a couple of very useful Selmer symbols
+;; bridge in a couple of very useful Selmer symbols - this lets you use
+;; fw1/add-tag! and fw1/add-filter! in your application, rather than reach
+;; into Selmer itself
 
 (intern *ns* (with-meta 'add-tag!
                (meta #'selmer.parser/add-tag!))
@@ -46,25 +48,46 @@
 (defn- render-data [rc as expr]
   (assoc rc ::render {:as as :data expr}))
 
-;; FW/1 base functionality
+;; FW/1 base functionality - this is essentially the public API of the
+;; framework with the entry point to create Ring middleware being:
+;; (fw1/start) - returns Ring middleware for your application
+;; See the bottom of this file for more details
 
-;; (start & config) - entry point to the framework
+(def cookie
+  "Get / set items in cookie scope:
+  (cookie rc name) - returns the named cookie
+  (cookie rc name value) - sets the named cookie"
+  (scope-access :cookies))
 
-(def cookie (scope-access :cookies))
+(def event
+  "Get / set FW/1's 'event' scope data. Valid event scope entries are:
+  :action :section :item :config
+  You should normally only read the event data: (event rc key)"
+  (scope-access ::event))
 
-(def event (scope-access ::event))
-
-(def flash (scope-access :flash))
+(def flash
+  "Get / set items in 'flash' scope. Data stored in flash scope in
+  a request should be automatically restored to the 'rc' on the
+  subsequent request. You should not need to read flash scope,
+  just store items there: (flash rc name value)"
+  (scope-access :flash))
 
 (defn header
-  "Either read the request headers or write the response headers."
+  "Either read the request headers or write the response headers:
+  (header rc name) - return the named (request) header
+  (header rc name value) - write the named (response) header"
   ([rc n] (get-in rc [::request :req-headers n]))
   ([rc n v] (assoc-in rc [::request :headers n] v)))
 
-(defn redirect [rc url]
+(defn redirect
+  "Tell FW/1 to perform a redirect."
+  [rc url]
   (assoc rc ::redirect {:status 302 :headers {"Location" url}}))
 
-(defn reload? [rc]
+(defn reload?
+  "Returns true if the current request is a reload request (or
+  the application is configured to reload on every request)."
+  [rc]
   (let [config (event rc :config)
         reload (get rc (:reload config))
         password (:password config)]
@@ -72,17 +95,26 @@
         (:reload-application-on-every-request config))))
 
 (defn remote-addr
-  "Return the remote IP address for this request."
+  "Return the remote IP address for this request.
+  This value comes directly from Ring and is dependent on your
+  application server (so it may be IPv4 or IPv6)."
   [rc]
   (get-in rc [::request :remote-addr]))
 
-(defn render-json [rc expr]
+(defn render-json
+  "Tell FW/1 to render this expression as JSON."
+  [rc expr]
   (render-data rc :json expr))
 
-(defn render-text [rc expr]
+(defn render-text
+  "Tell FW/1 to render this expression (string) as plain text."
+  [rc expr]
   (render-data rc :text expr))
 
-(defn render-xml [rc expr]
+(defn render-xml
+  "Tell FW/1 to render this expression as XML.
+  Uses clojure.data.xml's sexp-as-element - see those docs for more detail."
+  [rc expr]
   (render-data rc :xml expr))
 
 (defn servlet-request
@@ -92,12 +124,24 @@
     (getParameter [name]
       (if-let [v (get rc (keyword name))] (str v) nil))))
 
-(def session (scope-access :session))
+(def session
+  "Get / set items in session scope:
+  (session rc name) - returns the named session variable
+  (session rc value) - sets the named session variable
+  Session variables persist across requests and use Ring's session
+  middleware (and can be memory or cookie-based at the moment)."
+  (scope-access :session))
 
-(defn to-long [l]
+(defn to-long
+  "Given a string, convert it to a long (or zero if it is not
+  numeric). This provides a quick'n'dirty way to process integral
+  values passed in the 'rc'. For more sophisticated parsing, or
+  for other data types, you'll need to roll your own conversions."
+  [l]
   (try (Long/parseLong l) (catch Exception _ 0)))
 
 ;; FW/1 implementation
+
 (defn- parts [req]
   (rest (.split req "/")))
 
