@@ -142,29 +142,50 @@
 
 ;; FW/1 implementation
 
-(defn- parts [req]
-  (rest (.split req "/")))
+;; low-level route-matching code
 
-(defn- compile-route [req]
-  (let [verb? (.startsWith req "$")
+(defn- parts
+  "Given a URI (beginning with /), return a sequence of its parts with
+  the leading empty string removed:
+  /foo/bar/baz/quuz -> [foo bar baz quux]"
+  [uri]
+  (rest (.split uri "/")))
+
+(defn- compile-route
+  "Given a route pattern, perform some 'precompilation' on it to turn it into
+  a sequence of parts, preceded by a verb match. Parts that begin with : are turned
+  into keywords and represent variables to bind in the patterns:
+  $GET/product/:id -> [:get [product :id]]"
+  [route]
+  (let [verb? (.startsWith route "$")
         verb (if verb?
-               (cond (.startsWith req "$GET") :get
-                     (.startsWith req "$POST") :post
+               (cond (.startsWith route "$GET") :get
+                     (.startsWith route "$POST") :post
                      :else :any))]
     [verb
      (map (fn [part]
             (if (.startsWith part ":")
               (keyword (.substring part 1))
               part))
-          (parts req))]))
+          (parts route))]))
 
-(defn- match-part [p r]
+(defn- match-part
+  "Given the corresponding parts of a pattern and a route, return truthy if
+  they match. If the pattern is a variable to bind (a keyword), return a map
+  of the variable to the route part, else match the parts literally.
+  TODO: does this need to return nil rather than false?"
+  [p r]
   (cond
    (keyword? p) {p r}
    p            (= r p)
    :else        nil))
 
-(defn- substitute-route [route lookup tail]
+(defn- substitute-route
+  "Given a new route, a lookup (of matched variables), and a tail (of unmatched
+  parts of the original route), return a sequence representing the transformed
+  route:
+  [product :id] {:id 123} [baz quux] -> [product 123 baz quux]"
+  [route lookup tail]
   (concat (map
            (fn [part]
              (if (keyword? part)
@@ -172,7 +193,13 @@
                part))
            route) tail))
 
-(defn- matches-route [compiled-url method [verb compiled-route]]
+(defn- matches-route
+  "Given a 'compiled' URL, an HTTP method, and a pattern (which is a verb match
+  and a 'compiled' route pattern), return the unmatched tail of the URL. If nothing
+  matches, return the special sequence [::empty] - as opposed to [] which means
+  everything matched.
+  TODO: would it be easier to just return ::empty instead?"
+  [compiled-url method [verb compiled-route]]
   (if (or (empty? compiled-route)
           (and (not= :any verb)
                (not= verb method)))
@@ -182,12 +209,22 @@
                      (concat compiled-route (repeat nil))
                      (concat compiled-url (repeat nil))))))
 
-(defn- pre-compile-routes [routes]
+(defn- pre-compile-routes
+  "Given the route patterns (a vector of single-pattern maps), return a pair of
+  all the patterns 'compiled' and all the corresponding mapped routes 'compiled'."
+  [routes]
   (let [all-routes (apply concat routes)]
     [(map compile-route (map first all-routes))
      (map (comp second compile-route) (map second all-routes))]))
 
-(defn- process-routes [routes new-routes url method]
+(defn- process-routes
+  "Given a sequence of (compiled) route patterns, a corresponding sequence of
+  (compiled) mapped routes, an input URL, and the HTTP method used, return the
+  route after matching and processing. This finds the first match in all the
+  patterns and, if there is one, accumulates all the bound variables from the
+  match for substitution. Any unmatched part of the URL is returned untouched,
+  after the matching portion has been substituted."
+  [routes new-routes url method]
   (let [[_ url] (compile-route url)
         matching (map (partial matches-route url method) routes)
         no-matches (count (take-while empty? matching))
@@ -197,6 +234,8 @@
                          matches)
         url-rest (if (= [::empty] matches) url (drop (count matches) url))]
     (substitute-route (first (drop no-matches new-routes)) lookup url-rest)))
+
+;; utilities for handling file paths and routes
 
 (defn- ->fs
   "Given a Clojure path, return a filesystem path. This just follows the
@@ -225,6 +264,8 @@
   (if-let [app (:application-key config)]
     (str app sep)
     ""))
+
+;; main FW/1 logic
 
 (defn- get-view-path
   "Given the application configuration, and the section and item, return the path to
