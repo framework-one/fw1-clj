@@ -61,18 +61,6 @@
   ([rc n] (get-in rc [::request :req-headers n]))
   ([rc n v] (assoc-in rc [::request :headers n] v)))
 
-(defn remote-addr
-  "Return the remote IP address for this request."
-  [rc]
-  (get-in rc [::request :remote-addr]))
-
-(defn servlet-request
-  "Return a fake HttpServletRequest that knows how to delegate to the rc."
-  [rc]
-  (proxy [javax.servlet.http.HttpServletRequest] []
-    (getParameter [name]
-      (if-let [v (get rc (keyword name))] (str v) nil))))
-
 (defn redirect [rc url]
   (assoc rc ::redirect {:status 302 :headers {"Location" url}}))
 
@@ -83,6 +71,11 @@
     (or (and reload password (= reload password))
         (:reload-application-on-every-request config))))
 
+(defn remote-addr
+  "Return the remote IP address for this request."
+  [rc]
+  (get-in rc [::request :remote-addr]))
+
 (defn render-json [rc expr]
   (render-data rc :json expr))
 
@@ -91,6 +84,13 @@
 
 (defn render-xml [rc expr]
   (render-data rc :xml expr))
+
+(defn servlet-request
+  "Return a fake HttpServletRequest that knows how to delegate to the rc."
+  [rc]
+  (proxy [javax.servlet.http.HttpServletRequest] []
+    (getParameter [name]
+      (if-let [v (get rc (keyword name))] (str v) nil))))
 
 (def session (scope-access :session))
 
