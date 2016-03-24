@@ -198,24 +198,48 @@
         url-rest (if (= [::empty] matches) url (drop (count matches) url))]
     (substitute-route (first (drop no-matches new-routes)) lookup url-rest)))
 
-(defn- ->fs [path]
+(defn- ->fs
+  "Given a Clojure path, return a filesystem path. This just follows the
+  convention that a - in a namespace becomes a _ in a filename."
+  [path]
   (.replaceAll path "-" "_"))
 
-(defn- as-map [route]
+(defn- as-map
+  "Given the remaining expanded part of the route (after the section and item),
+  return it as a map of parameters:
+  /foo/bar/baz/quux/fie/foe -> section foo, item bar, and {baz quux, fie foo}"
+  [route]
   (apply hash-map
          (if (even? (count route))
            route
            (concat route [""]))))
 
-(defn- stem [config sep]
+(defn- stem
+  "Given the application configuration and a separator, return the stem of a path
+  to the controllers, layouts, views or (Ring) resources. Returns an empty string
+  unless :application-key is provided in the configuration. The :application-key
+  may specify a single folder name relative to the classpath, in which to find
+  the application source code (this allows multiple FW/1 applications to be run
+  in the same classpath without conflict)."
+  [config sep]
   (if-let [app (:application-key config)]
     (str app sep)
     ""))
 
-(defn- get-view-path [config section item]
+(defn- get-view-path
+  "Given the application configuration, and the section and item, return the path to
+  the matching view (which may or may not exist)."
+  [config section item]
   (str (stem config "/") "views/" section "/" item "." (:suffix config)))
 
-(defn- apply-controller [config controller-ns rc item]
+(defn- apply-controller
+  "Given the application configuration, a controller namespace, the request context, and
+  the item for a request, return the new request context with the controller applied.
+  It the item is a keyword, it is assumed to refer to a controller-like function in the
+  application configuration (specifically :before or :after).
+  If the request context indicates that a redirect or a data render is desired, do not
+  apply any further controller functions."
+  [config controller-ns rc item]
   (if (or (::redirect rc)
           (::render rc))
     rc
@@ -223,15 +247,21 @@
       (if-let [f (item config)] (f rc) rc)
       (if-let [f (resolve (symbol (str controller-ns "/" item)))] (f rc) rc))))
 
-(defn- get-layout-paths [config section item]
+(defn- get-layout-paths
+  "Given the application configuration, and the section and item, return the sequence of
+  applicable (and existing!) layouts."
+  [config section item]
   (let [dot-html (str "." (:suffix config))]
     (filter resource-path
             [(str (stem config "/") "layouts/" section "/" item dot-html)
              (str (stem config "/") "layouts/" section dot-html)
              (str (stem config "/") "layouts/default" dot-html)])))
 
-(defn- apply-view [config rc section item exceptional?]
-  (let [view-path  (get-view-path config section item)
+(defn- apply-view
+  "Given the application configuration, the request context, the sction and item, and a flag that
+  indicates whether we're already processing an exception, attempt to render the matching view."
+  [config rc section item exceptional?]
+  (let [view-path   (get-view-path config section item)
         render-view (fn [] (selmer.parser/render-file view-path rc (:selmer-tags config)))]
     (if exceptional?
       ;; if we fail to render a view while processing an exception
@@ -240,24 +270,33 @@
       (try (render-view) (catch Exception _))
       (render-view))))
 
-(defn- apply-layout [config rc exceptional? nodes layout-path]
-  (let [render-layout (fn []
-                        (selmer.parser/render-file layout-path
-                                                   (assoc rc :body [:safe nodes])
-                                                   (:selmer-tags config)))]
+(defn- apply-layout
+  "Given the application configuration, the request context, a flag that indicates
+  whether we're already processing an exception, the view HTML so far and the
+  desired layout path, attempt to render that layout."
+  [config rc exceptional? html layout-path]
+  (let [render-layout (fn [] (selmer.parser/render-file layout-path
+                                                       (assoc rc :body [:safe html])
+                                                       (:selmer-tags config)))]
     (if exceptional?
       ;; if we fail to render a layout while processing an exception
       ;; just treat the layout as not found so the original view will
       ;; be returned unadorned
-      (try (render-layout) (catch Exception _ nodes))
+      (try (render-layout) (catch Exception _ html))
       (render-layout))))
 
-(defn- not-found []
+(defn- not-found
+  "Return a basic 404 Not Found page."
+  []
   {:status 404
    :header {"Content-Type" "text/html; charset=utf-8"}
    :body "Not Found"})
 
-(defn- render-page [config rc section item exceptional?]
+(defn- render-page
+  "Given the application configuration, the request context, the section and item, and a flag that
+  indicates whether we're already processing an exception, try to render a view and a cascade of
+  available layouts. The result will either be a successful HTML page or a 500 error."
+  [config rc section item exceptional?]
   (if-let [view-render (apply-view config rc section item exceptional?)]
     (let [layout-cascade (get-layout-paths config section item)
           final-html (reduce (partial apply-layout config rc exceptional?) view-render layout-cascade)]
@@ -270,10 +309,13 @@
       (not-found))))
 
 (defn- as-xml
+  "Given an expression, return an XML string representation of it."
   [expr]
   (with-out-str (xml/emit (xml/sexp-as-element expr) *out*)))
 
 (def ^:private render-types
+  "Supported content types and renderers.
+  TODO #33 support HTML!"
   {:json {:type "application/json; charset=utf-8"
           :body json/write-str}
    :text {:type "text/plain; charset=utf-8"
@@ -281,13 +323,22 @@
    :xml  {:type "text/xml; charset=utf-8"
           :body as-xml}})
 
-(defn- render-data-response [{:keys [as data]}]
+(defn- render-data-response
+  "Given the format and data, return a success response with the appropriate
+  content type and the data rendered as the body.
+  TODO #32 support status code!"
+  [{:keys [as data]}]
   (let [renderer (render-types as)]
     {:status 200
      :headers {"Content-Type" (:type renderer)}
      :body ((:body renderer) data)}))
 
-(defn- require-controller [rc controller-ns]
+(defn- require-controller
+  "Given the request context and a controller namespace, require it.
+  This is where we optionally force a reload of the Clojure code.
+  We require on every request. Since Clojure prefers in-memory classes, this is
+  safe and performant: once it has loaded a namespace, it will not look on disk."
+  [rc controller-ns]
   (try
     (if (reload? rc)
       (require controller-ns :reload)
@@ -296,7 +347,10 @@
       ;; missing controller OK; anything else should bubble up
       nil)))
 
-(defn- get-section-item [config route]
+(defn- get-section-item
+  "Given the application configuration and an expanded route, return a pair of the
+  section and item (defaulted as appropriate)."
+  [config route]
   (if (empty? route)
     (:home config)
     [(first route) (or (second route) (:default-item config))]))
@@ -326,7 +380,11 @@
           resp
           [:session :cookies :flash :headers]))
 
-(defn- render-request [config req]
+(defn- render-request
+  "Given the application configuration and a (Ring) request, convert that to a FW/1
+  request context 'rc' and locate and run the controller, then either redirect,
+  render an expression as data, or try to render views and layouts."
+  [config req]
   (let [exceptional? (::handling-exception req)
         [routes new-routes] (:routes config)
         route (process-routes routes new-routes (:uri req) (:request-method req))
@@ -349,7 +407,9 @@
              (render-page config rc section item exceptional?)))
          (unpack-response rc))))
 
-(defn- controller [config]
+(defn- controller
+  "Given the application configuration, return a function that processes a request."
+  [config]
   (fn configured-controller [req]
     ;; since favicon.ico is commonly requested but often not present, we special case
     ;; it and return 404 Not Found rather than look for (and fail to find) that action!
@@ -388,7 +448,15 @@
   (process-routes routes new-routes "/user/42/sort/email"))
 )
 
-(defn- merge-middleware [config]
+(defn- merge-middleware
+  "Return a function that, given any user-supplied middleware (as a vector),
+  will combine that will our default Ring middleware (see above). The user
+  supplied middleware vector is prepended before the default middleware by
+  default, but can have a placement as its first element:
+  - :append  - append supplied middleware after defaults
+  - :replace - use supplied middleware instead of defaults
+  - :prepend - prepend supplied middleware before defaults"
+  [config]
   (fn [middleware]
     (if middleware
       (condp = (first middleware)
@@ -398,7 +466,9 @@
         (concat middleware (default-middleware config)))
       (default-middleware config))))
 
-(defn- framework-defaults [options]
+(defn- framework-defaults
+  "Calculate configuration items based on supplied options or defaults."
+  [options]
   (assoc options
          :error (if (:error options)
                   (clojure.string/split (:error options) #"\.")
