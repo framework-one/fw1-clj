@@ -12,7 +12,7 @@
 (expect (more-of {:keys [status body]}
                  200         status
                  "Test Item\n" body)
-        ((fw1/start :default-section "test" :default-item "item") {:uri "/"}))
+        ((fw1/start :home "test.item") {:uri "/"}))
 
 (expect (more-of {:keys [status body]}
                  200         status
