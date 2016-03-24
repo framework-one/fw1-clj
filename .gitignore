@@ -11,3 +11,4 @@ pom.xml
 /target/
 /pom.xml.asc
 /.nrepl-port
+/.nrepl-history

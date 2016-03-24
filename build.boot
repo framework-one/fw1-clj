@@ -1,5 +1,5 @@
 (def project 'framework-one)
-(def version "0.5.2")
+(def version "0.5.3-SNAPSHOT")
 
 (task-options!
  pom {:project     project
@@ -15,7 +15,10 @@
                             [org.clojure/data.json "RELEASE"]
                             [org.clojure/data.xml  "RELEASE"]
                             [ring                  "RELEASE"]
-                            [selmer                "RELEASE"]])
+                            [selmer                "RELEASE"]
+                            [seancorfield/boot-expectations "RELEASE" :scope "test"]])
+
+(require '[seancorfield.boot-expectations :refer [expectations]])
 
 (deftask build []
   (comp (pom) (jar) (install)))
@@ -27,3 +30,13 @@
   (merge-env! :resource-paths #{"examples"})
   (require '[usermanager.main :as app])
   (apply (resolve 'app/-main) []))
+
+(deftask with-test []
+  (merge-env! :source-paths #{"test"})
+  identity)
+
+(ns-unmap *ns* 'test)
+
+(deftask test []
+  (comp (with-test)
+        (expectations)))
