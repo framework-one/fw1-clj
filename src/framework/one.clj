@@ -102,6 +102,11 @@
   [rc]
   (get-in rc [::request :remote-addr]))
 
+(defn render-html
+  "Tell FW/1 to render this expression (string) as-is as HTML."
+  [rc expr]
+  (render-data rc :html expr))
+
 (defn render-json
   "Tell FW/1 to render this expression as JSON."
   [rc expr]
@@ -178,8 +183,7 @@
 (defn match-part
   "Given the corresponding parts of a pattern and a route, return truthy if
   they match. If the pattern is a variable to bind (a keyword), return a map
-  of the variable to the route part, else match the parts literally.
-  TODO: does this need to return nil rather than false?"
+  of the variable to the route part, else match the parts literally."
   [p r]
   (cond (keyword? p) (when r {p r})
         (= r p)      p
@@ -247,9 +251,15 @@
 
 ;; utilities for handling file paths and routes
 
+(defn ->clj
+  "Given a filesystem path, return a Clojure ns/symbol. This just follows the
+  convention that a _ in a filename becomes a - in a namespace/function."
+  [path]
+  (.replaceAll path "_" "-"))
+
 (defn ->fs
-  "Given a Clojure path, return a filesystem path. This just follows the
-  convention that a - in a namespace becomes a _ in a filename."
+  "Given a Clojure ns/symbol, return a filesystem path. This just follows the
+  convention that a - in a namespace/function becomes a _ in a filename."
   [path]
   (.replaceAll path "-" "_"))
 
@@ -281,7 +291,7 @@
   "Given the application configuration, and the section and item, return the path to
   the matching view (which may or may not exist)."
   [config section item]
-  (str (stem config "/") "views/" section "/" item "." (:suffix config)))
+  (->fs (str (stem config "/") "views/" section "/" item "." (:suffix config))))
 
 (defn apply-controller
   "Given the application configuration, a controller namespace, the request context, and
@@ -296,7 +306,7 @@
     rc
     (if (keyword? item)
       (if-let [f (item config)] (f rc) rc)
-      (if-let [f (resolve (symbol (str controller-ns "/" item)))] (f rc) rc))))
+      (if-let [f (resolve (symbol (str controller-ns "/" (->clj item))))] (f rc) rc))))
 
 (defn get-layout-paths
   "Given the application configuration, and the section and item, return the sequence of
@@ -304,9 +314,9 @@
   [config section item]
   (let [dot-html (str "." (:suffix config))]
     (filter resource-path
-            [(str (stem config "/") "layouts/" section "/" item dot-html)
-             (str (stem config "/") "layouts/" section dot-html)
-             (str (stem config "/") "layouts/default" dot-html)])))
+            (map ->fs [(str (stem config "/") "layouts/" section "/" item dot-html)
+                       (str (stem config "/") "layouts/" section dot-html)
+                       (str (stem config "/") "layouts/default" dot-html)]))))
 
 (defn apply-view
   "Given the application configuration, the request context, the sction and item, and a flag that
@@ -367,9 +377,10 @@
   (with-out-str (xml/emit (xml/sexp-as-element expr) *out*)))
 
 (def ^:private render-types
-  "Supported content types and renderers.
-  TODO #33 support HTML!"
-  {:json {:type "application/json; charset=utf-8"
+  "Supported content types and renderers."
+  {:html {:type "text/html; charset=utf-8"
+          :body identity}
+   :json {:type "application/json; charset=utf-8"
           :body json/write-str}
    :text {:type "text/plain; charset=utf-8"
           :body identity}
@@ -449,7 +460,7 @@
                (event :section section)
                (event :item    item)
                (event :config  config))
-        controller-ns (symbol (str (stem config ".") "controllers." section))
+        controller-ns (symbol (->clj (str (stem config ".") "controllers." section)))
         _ (require-controller rc controller-ns)
         rc (reduce (partial apply-controller config controller-ns)
                    rc

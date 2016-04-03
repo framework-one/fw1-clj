@@ -1,4 +1,4 @@
-;; copyright (c) 2016 sean corfield
+;; Copyright (c) 2016 Sean Corfield
 
 (ns basic.expectations.server
   (:require [framework.one :as fw1]
