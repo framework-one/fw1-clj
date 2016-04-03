@@ -46,8 +46,11 @@
     ([rc n v] (assoc-in rc [::request scope n] v))))
 
 ;; render data support
-(defn render-data [rc as expr]
-  (assoc rc ::render {:as as :data expr}))
+(defn render-data
+  ([rc as expr]
+   (assoc rc ::render {:as as :data expr}))
+  ([rc status as expr]
+   (assoc rc ::render {:status status :as as :data expr})))
 
 ;; FW/1 base functionality - this is essentially the public API of the
 ;; framework with the entry point to create Ring middleware being:
@@ -104,24 +107,32 @@
 
 (defn render-html
   "Tell FW/1 to render this expression (string) as-is as HTML."
-  [rc expr]
-  (render-data rc :html expr))
+  ([rc expr]
+   (render-data rc :html expr))
+  ([rc status expr]
+   (render-data rc status :html expr)))
 
 (defn render-json
   "Tell FW/1 to render this expression as JSON."
-  [rc expr]
-  (render-data rc :json expr))
+  ([rc expr]
+   (render-data rc :json expr))
+  ([rc status expr]
+   (render-data rc status :json expr)))
 
 (defn render-text
   "Tell FW/1 to render this expression (string) as plain text."
-  [rc expr]
-  (render-data rc :text expr))
+  ([rc expr]
+   (render-data rc :text expr))
+  ([rc status expr]
+   (render-data rc status :text expr)))
 
 (defn render-xml
   "Tell FW/1 to render this expression as XML.
   Uses clojure.data.xml's sexp-as-element - see those docs for more detail."
-  [rc expr]
-  (render-data rc :xml expr))
+  ([rc expr]
+   (render-data rc :xml expr))
+  ([rc status expr]
+   (render-data rc status :xml expr)))
 
 (defn servlet-request
   "Return a fake HttpServletRequest that knows how to delegate to the rc."
@@ -389,11 +400,11 @@
 
 (defn render-data-response
   "Given the format and data, return a success response with the appropriate
-  content type and the data rendered as the body.
-  TODO #32 support status code!"
-  [{:keys [as data]}]
+  content type and the data rendered as the body."
+  [{:keys [status as data]
+    :or   {status 200}}]
   (let [renderer (render-types as)]
-    {:status  200
+    {:status  status
      :headers {"Content-Type" (:type renderer)}
      :body    ((:body renderer) data)}))
 
