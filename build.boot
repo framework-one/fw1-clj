@@ -32,7 +32,8 @@
   (apply (resolve 'app/-main) []))
 
 (deftask with-test []
-  (merge-env! :source-paths #{"test"})
+  (merge-env! :source-paths #{"test"}
+              :dependencies '[[expectations "RELEASE"]])
   identity)
 
 (ns-unmap *ns* 'test)
