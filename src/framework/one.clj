@@ -16,6 +16,7 @@
   (:require [clojure.data.json :as json]
             [clojure.data.xml :as xml]
             [clojure.stacktrace :as stacktrace]
+            [clojure.string :as str]
             [clojure.walk :as walk]
             [ring.middleware.flash :as ring-f]
             [ring.middleware.params :as ring-p]
@@ -151,24 +152,28 @@
   [uri]
   (rest (.split uri "/")))
 
+(def ^:private http-verbs
+  "The HTTP verbs we support in routes."
+  [:get :post :put :patch :delete])
+
+(def ^:private route-verbs
+  "Match from $VERB => :verb."
+  (reduce (fn [m v] (assoc m (str "$" (str/upper-case (name v))) v)) {} http-verbs))
+
 (defn compile-route
   "Given a route pattern, perform some 'precompilation' on it to turn it into
   a sequence of parts, preceded by a verb match. Parts that begin with : are turned
   into keywords and represent variables to bind in the patterns:
   $GET/product/:id -> [:get [product :id]]"
   [route]
-  (let [verb? (.startsWith route "$")
-        verb (if verb?
-               (cond (.startsWith route "$GET") :get
-                     (.startsWith route "$POST") :post
-                     :else :any)
-               :any)]
-    [verb
-     (map (fn [part]
-            (if (.startsWith part ":")
-              (keyword (.substring part 1))
-              part))
-          (parts route))]))
+  [(or (and (.startsWith route "$")
+            (some (fn [[r v]] (when (.startsWith route r) v)) route-verbs))
+       :any)
+   (map (fn [part]
+          (if (.startsWith part ":")
+            (keyword (.substring part 1))
+            part))
+        (parts route))])
 
 (defn match-part
   "Given the corresponding parts of a pattern and a route, return truthy if

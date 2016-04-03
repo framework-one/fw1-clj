@@ -40,4 +40,4 @@
 
 (deftask test []
   (comp (with-test)
-        (expectations)))
+        (expectations :verbose true)))

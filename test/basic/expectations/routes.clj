@@ -13,3 +13,15 @@
 (expect [{:section "xlist"}] (fw1/matches-route (list "xlist") :get [:get [:section]]))
 
 (expect :framework.one/not-found (fw1/matches-route (list "xlist") :get [:get [:section :item]]))
+
+(expect [[[:any ["list"]]] [["product" "list"]]] (fw1/pre-compile-routes [{"/list" "/product/list"}]))
+
+(expect [[[:get ["list"]]] [["product" "list"]]] (fw1/pre-compile-routes [{"$GET/list" "/product/list"}]))
+
+(expect [[[:post ["list"]]] [["product" "list"]]] (fw1/pre-compile-routes [{"$POST/list" "/product/list"}]))
+
+(expect [[[:put ["list"]]] [["product" "list"]]] (fw1/pre-compile-routes [{"$PUT/list" "/product/list"}]))
+
+(expect [[[:patch ["list"]]] [["product" "list"]]] (fw1/pre-compile-routes [{"$PATCH/list" "/product/list"}]))
+
+(expect [[[:delete ["list"]]] [["product" "list"]]] (fw1/pre-compile-routes [{"$DELETE/list" "/product/list"}]))
