@@ -24,3 +24,17 @@
                  #"Exception.*views/bar/default.html.*doesn't exist" body)
         ((fw1/start {:routes [{"$GET/foo" "/"}
                               {"/:section/:item" "/"}]}) {:uri "/bar" :request-method :post}))
+
+(expect (more-of {:keys [status body]}
+                 404         status
+                 "Not Found" body)
+        ((fw1/start {:routes [{"$GET/foo" "/"}
+                              {"*" "404:/"}]}) {:uri "/bar" :request-method :post}))
+
+(expect (more-of {:keys [status headers body]}
+                 302    status
+                 "/foo" (some (fn [[h v]] (when (= "Location" h) v)) headers)
+                 nil    body)
+        ((fw1/start {:routes [{"$GET/foo" "/"}
+                              {"/bar" "302:/foo"}
+                              {"*" "404:/"}]}) {:uri "/bar" :request-method :post}))

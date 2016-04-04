@@ -180,18 +180,23 @@
   "Given a route pattern, perform some 'precompilation' on it to turn it into
   a sequence of parts, preceded by a verb match. Parts that begin with : are turned
   into keywords and represent variables to bind in the patterns:
-  $GET/product/:id -> [:get [product :id]]"
+  $GET/product/:id -> [:get [product :id]]
+  If the route is an HTTP status code, a colon, and a path, then that is a special
+  type of route that produces a pair of the status code and the path."
   [route]
-  [(or (and (.startsWith route "$")
-            (some (fn [[r v]] (when (.startsWith route r) v)) route-verbs))
-       :any)
-   (map (fn [part]
-          (if (.startsWith part ":")
-            (keyword (.substring part 1))
-            part))
-        (if (= "*" route)
-          ["*"]
-          (parts route)))])
+  (let [[_ status route'] (re-find #"(\d\d\d):(.*)" route)]
+    (if status
+      [:any [(to-long status) route']]
+      [(or (and (.startsWith route "$")
+                (some (fn [[r v]] (when (.startsWith route r) v)) route-verbs))
+           :any)
+       (map (fn [part]
+              (if (.startsWith part ":")
+                (keyword (.substring part 1))
+                part))
+            (if (= "*" route)
+              ["*"]
+              (parts route)))])))
 
 (defn match-part
   "Given the corresponding parts of a pattern and a route, return truthy if
@@ -206,14 +211,18 @@
   "Given a new route, a lookup (of matched variables), and a tail (of unmatched
   parts of the original route), return a sequence representing the transformed
   route:
-  [product :id] {:id 123} [baz quux] -> [product 123 baz quux]"
+  [product :id] {:id 123} [baz quux] -> [product 123 baz quux]
+  We return a pair of HTTP status code and new route, where the status code
+  will be nil unless the route itself specifies it."
   [route lookup tail]
-  (concat (map
-           (fn [part]
-             (if (keyword? part)
-               (lookup part)
-               part))
-           route) tail))
+  (if (number? (first route))
+    [(first route) (second route)]
+    [nil (concat (map
+                  (fn [part]
+                    (if (keyword? part)
+                      (lookup part)
+                      part))
+                  route) tail)]))
 
 (defn matches-route
   "Given a 'compiled' URL, an HTTP method, and a pattern (which is a verb match
@@ -462,6 +471,17 @@
           resp
           [:session :cookies :flash :headers]))
 
+(defn adjust-rc-by-status
+  "Given the 'rc', a (possibly nil) HTTP status, and a new route,
+  modify the 'rc' to indicate a redirect or a render if appropriate."
+  [rc status route]
+  (case status
+    (301 302) (redirect rc route)
+    403       (render-html rc 403 "Forbidden")
+    404       (render-html rc 404 "Not Found")
+    405       (render-html rc 405 "Method Not Allowed")
+    rc))
+
 (defn render-request
   "Given the application configuration and a (Ring) request, convert that to a FW/1
   request context 'rc' and locate and run the controller, then either redirect,
@@ -470,14 +490,15 @@
   (let [exceptional? (::handling-exception req)
         ;; disable route processing for error handling
         [routes new-routes] (if exceptional? [() ()] (:routes config))
-        route (process-routes routes new-routes (:uri req) (:request-method req))
+        [status route] (process-routes routes new-routes (:uri req) (:request-method req))
         [section item] (get-section-item config route)
         rc (-> (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
                (pack-request req)
                (event :action  (str section "." item))
                (event :section section)
                (event :item    item)
-               (event :config  config))
+               (event :config  config)
+               (adjust-rc-by-status status route))
         controller-ns (symbol (->clj (str (stem config ".") "controllers." section)))
         _ (require-controller rc controller-ns)
         rc (reduce (partial apply-controller config controller-ns)
