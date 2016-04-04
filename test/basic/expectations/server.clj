@@ -20,8 +20,8 @@
         ((fw1/start {:default-section "test" :default-item "item"}) {:uri "/"}))
 
 (expect (more-of {:keys [status body]}
-                 500         status
-                 #"Exception.*views/bar/default.html.*doesn't exist" body)
+                 404         status
+                 "Not Found" body)
         ((fw1/start {:routes [{"$GET/foo" "/"}
                               {"/:section/:item" "/"}]}) {:uri "/bar" :request-method :post}))
 

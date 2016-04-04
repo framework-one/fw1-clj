@@ -351,12 +351,13 @@
   [config rc section item exceptional?]
   (let [view-path   (get-view-path config section item)
         render-view (fn [] (selmer.parser/render-file view-path rc (:selmer-tags config)))]
-    (if exceptional?
-      ;; if we fail to render a view while processing an exception
-      ;; just treat the (error) view as not found so the original
-      ;; exception will be returned as a 500 error
-      (try (render-view) (catch Exception _))
-      (render-view))))
+    (when (resource-path view-path)
+      (if exceptional?
+        ;; if we fail to render a view while processing an exception
+        ;; just treat the (error) view as not found so the original
+        ;; exception will be returned as a 500 error
+        (try (render-view) (catch Exception _))
+        (render-view)))))
 
 (defn apply-layout
   "Given the application configuration, the request context, a flag that indicates
