@@ -189,7 +189,9 @@
           (if (.startsWith part ":")
             (keyword (.substring part 1))
             part))
-        (parts route))])
+        (if (= "*" route)
+          ["*"]
+          (parts route)))])
 
 (defn match-part
   "Given the corresponding parts of a pattern and a route, return truthy if
@@ -222,17 +224,22 @@
              (not= verb method))
         ;; mismatch on verb
         ::not-found
-        ;; empty route matches everything
+        ;; empty route matches anything
         (empty? compiled-route)
         []
-        :else (let [matches (take-while identity
-                                        (map match-part
-                                             (concat compiled-route (repeat nil))
-                                             (concat compiled-url (repeat nil))))]
-                ;; matched whole route
-                (if (<= (count compiled-route) (count matches))
-                  matches
-                  ::not-found))))
+        ;; wildcard route matches everything
+        (= ["*"] compiled-route)
+        compiled-url
+        ;; perform piece-wise match
+        :else
+        (let [matches (take-while identity
+                                  (map match-part
+                                       (concat compiled-route (repeat nil))
+                                       (concat compiled-url (repeat nil))))]
+          ;; matched whole route
+          (if (<= (count compiled-route) (count matches))
+            matches
+            ::not-found))))
 
 (defn pre-compile-routes
   "Given the route patterns (a vector of single-pattern maps), return a pair of

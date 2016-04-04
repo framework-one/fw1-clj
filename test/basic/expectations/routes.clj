@@ -14,6 +14,18 @@
 
 (expect :framework.one/not-found (fw1/matches-route (list "xlist") :get [:get [:section :item]]))
 
+(expect [[[:any ["*"]]] [[]]] (fw1/pre-compile-routes [{"*" "/"}]))
+
+(expect [[[:any ["*"]]] [[]]] (fw1/pre-compile-routes [{"/*" "/"}]))
+
+(expect [[[:post ["*"]]] [[]]] (fw1/pre-compile-routes [{"$POST/*" "/"}]))
+
+(expect ["foo"] (fw1/matches-route ["foo"] :get [:any ["*"]]))
+
+(expect ["foo" "bar"] (fw1/matches-route ["foo" "bar"] :get [:any ["*"]]))
+
+(expect ["foo" "bar" "quux"] (fw1/matches-route ["foo" "bar" "quux"] :get [:any ["*"]]))
+
 (expect [[[:any ["list"]]] [["product" "list"]]] (fw1/pre-compile-routes [{"/list" "/product/list"}]))
 
 (expect [[[:get ["list"]]] [["product" "list"]]] (fw1/pre-compile-routes [{"$GET/list" "/product/list"}]))
