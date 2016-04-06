@@ -512,6 +512,20 @@
              (render-page config rc section item exceptional?)))
          (unpack-response rc))))
 
+(defn render-options
+  "Given the application configuration and a Ring request, return an OPTIONS response."
+  [config req]
+  (let [access-control (:options-access-control config)
+        methods        "OPTIONS,GET,POST,PUT,PATCH,DELETE"] ; should be dynamic, also include HEAD?
+    {:status  200
+     :body    ""
+     :headers {"Content-Type"                     "text/plain; charset=utf-8"
+               "Access-Control-Allow-Origin"      (:origin access-control)
+               "Access-Control-Allow-Methods"     methods
+               "Access-Control-Allow-Headers"     (:headers access-control)
+               "Access-Control-Allow-Credentials" (:credentials access-control)
+               "Access-Control-Max-Age"           (str (:max-age access-control))}}))
+
 (defn controller
   "Given the application configuration, return a function that processes a request."
   [config]
@@ -521,7 +535,9 @@
     (if (= "/favicon.ico" (:uri req))
       (not-found)
       (try
-        (render-request config req)
+        (if (= :options (:request-method req))
+          (render-options config req)
+          (render-request config req))
         (catch Exception e
           (if (::handling-exception req)
             (do
@@ -570,6 +586,12 @@
         (concat middleware (default-middleware config)))
       (default-middleware config))))
 
+(def ^:private default-options-access-control
+  {:origin      "*"
+   :headers     "Accept,Authorization,Content-Type"
+   :credentials true
+   :max-age     1728000} )
+
 (defn framework-defaults
   "Calculate configuration items based on supplied options or defaults."
   [options]
@@ -580,7 +602,8 @@
          :home  (if (:home options)
                   (clojure.string/split (:home options) #"\.")
                   [(:default-section options) (:default-item options)])
-         :routes (pre-compile-routes (:routes options))))
+         :routes (pre-compile-routes (:routes options))
+         :options-access-control (merge default-options-access-control (:options-access-control options))))
 
 (def ^:private default-options
   {:after identity
