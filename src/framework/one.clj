@@ -519,12 +519,12 @@
         methods        "OPTIONS,GET,POST,PUT,PATCH,DELETE"] ; should be dynamic, also include HEAD?
     {:status  200
      :body    ""
-     :headers {"Content-Type"                     "text/plain; charset=utf-8"
-               "Access-Control-Allow-Origin"      (:origin access-control)
-               "Access-Control-Allow-Methods"     methods
-               "Access-Control-Allow-Headers"     (:headers access-control)
-               "Access-Control-Allow-Credentials" (:credentials access-control)
-               "Access-Control-Max-Age"           (str (:max-age access-control))}}))
+     :headers [{"Content-Type"                     "text/plain; charset=utf-8"}
+               {"Access-Control-Allow-Origin"      (:origin access-control)}
+               {"Access-Control-Allow-Methods"     methods}
+               {"Access-Control-Allow-Headers"     (:headers access-control)}
+               {"Access-Control-Allow-Credentials" (:credentials access-control)}
+               {"Access-Control-Max-Age"           (str (:max-age access-control))}]}))
 
 (defn controller
   "Given the application configuration, return a function that processes a request."
@@ -623,8 +623,8 @@
   ([app-config]
    (let [options (merge default-options app-config)
          dynamic-options (framework-defaults options)
-         config (update-in dynamic-options [:middleware]
-                           (merge-middleware dynamic-options))]
+         config (update dynamic-options :middleware
+                        (merge-middleware dynamic-options))]
      (selmer.filters/add-filter! :empty? empty?)
      (reduce (fn [handler middleware] (middleware handler))
              (controller config)

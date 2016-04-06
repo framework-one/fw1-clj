@@ -2,7 +2,8 @@
 
 (ns basic.expectations.server
   (:require [framework.one :as fw1]
-            [expectations :refer [expect more-of]]))
+            [expectations :refer [expect more-of]]
+            [clojure.string :as str]))
 
 (expect (more-of {:keys [status body]}
                  200         status
@@ -38,3 +39,16 @@
         ((fw1/start {:routes [{"$GET/foo" "/"}
                               {"/bar" "302:/foo"}
                               {"*" "404:/"}]}) {:uri "/bar" :request-method :post}))
+
+(defn- header-name?
+  [name]
+  (fn [header]
+    (str/starts-with? (ffirst header) name)))
+
+(expect (more-of {:keys [status headers body]}
+                 200 status
+                 ""  body
+                 6   (count headers)
+                 5   (count (filter (header-name? "Access-Control") headers))
+                 4   (count (filter (header-name? "Access-Control-Allow") headers)))
+        ((fw1/start) {:uri "/" :request-method :options}))
