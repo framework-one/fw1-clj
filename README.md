@@ -62,19 +62,21 @@ FW/1 looks for a cascade of layouts (again, the suffix configurable):
 
 Any controller function also has access to the the FW/1 API:
 
-* `(cookie rc name)` - returns the value of `name` from the cookie scope
-* `(cookie rc name value)` - sets `name` to `value` in the cookie scope, and returns the updated `rc`
-* `(event rc name)` - returns the value of `name` from the event scope (`:action`, `:section`, `:item, or `:config`)
-* `(event rc name value)` - sets `name` to `value` in the event scope, and returns the updated `rc`
-* `(flash rc name)` - returns the value of `name` from the flash scope
-* `(flash rc name value)` - sets `name` to `value` in the flash scope, and returns the updated `rc`
-* `(header rc name)` - return the value of the `name` HTTP header, or `nil` if no such header exists
-* `(header rc name value)` - sets the `name` HTTP header to `value` for the response, and returns the updated `rc`
+* `(cookie rc name)` - returns the value of `name` from the cookie scope.
+* `(cookie rc name value)` - sets `name` to `value` in the cookie scope, and returns the updated `rc`.
+* `(event rc name)` - returns the value of `name` from the event scope (`:action`, `:section`, `:item, or `:config`).
+* `(event rc name value)` - sets `name` to `value` in the event scope, and returns the updated `rc`.
+* `(flash rc name)` - returns the value of `name` from the flash scope.
+* `(flash rc name value)` - sets `name` to `value` in the flash scope, and returns the updated `rc`.
+* `(header rc name)` - return the value of the `name` HTTP header, or `nil` if no such header exists.
+* `(header rc name value)` - sets the `name` HTTP header to `value` for the response, and returns the updated `rc`.
 * `(redirect rc url)` - returns `rc` containing information to indicate a redirect to the specified `url`.
 * `(reload? rc)` - returns `true` if the current request includes URL parameters to force an application reload.
 * `(remote-addr rc)` - returns the IP address of the remote requestor (if available).
-* `(session rc name)` - returns the value of `name` from the session scope
-* `(session rc name value)` - sets `name` to `value` in the session scope, and returns the updated `rc`
+* `(render-xxx rc data)` or `(render-xxx rc status data)` - render the specified `data`, optionally with the specified `status` code, in format _xxx_: `html`, `json`, `text`, `xml`.
+* `(servlet-request rc)` - returns a "fake" `HttpServletRequest` object that delegates `getParameter` calls to pull data out of `rc`; used for interop with other HTTP-centric libraries.
+* `(session rc name)` - returns the value of `name` from the session scope.
+* `(session rc name value)` - sets `name` to `value` in the session scope, and returns the updated `rc`.
 * `(to-long val)` - converts `val` to a long, returning zero if it cannot be converted (values in `rc` come in as strings so this is useful when you need a number instead and zero can be a sentinel for "no value").
 
 The following symbols from Selmer are exposed as aliases via the FW/1 API:
@@ -103,10 +105,13 @@ as a map or as an arbitrary number of inline key / value pairs:
 * `:default-item` - the _item_ used if none is present in the URL, default `"default"`.
 * `:error` - the action - _"section.item"_ - to execute if an exception is thrown from the initial request, defaults to `:default-section` value and `"error"` _[untested]_.
 * `:home` - the _"section.item"_ pair used for the / URL, defaults to `:default-section` and `:default-item` values.
+* `:json-config` - specify formatting information for Cheshire's JSON `generate-string`, used in `render-json` (`:date-format`, `:ex`, `:key-fn`, etc).
 * `:middleware` - specify additional Ring-compatible middleware to use. By default, this is prepended to the default list (params, flash, session, resource). The behavior can be changed by specifying a keyword at the start of the list of additional middleware: `:append`, `:prepend`, `:replace`.
+* `:options-access-control` - specify what an `OPTIONS` request should return (`:origin`, `:headers`, `:credentials`, `:max-age`).
 * `:password` - specify a password for the application reload URL flag, default `"secret"` - see also `:reload`.
 * `:reload` - specify an `rc` key for the application reload URL flag, default `:reload` - see also `:password`.
 * `:reload-application-on-every-request` - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
+* `:routes` - a vector of hash maps, specifying route patterns and what to map them to (full documentation coming in due course).
 * `:selmer-tags` - you can specify a map that is passed to the Selmer parser to override what characters are used to identify tags, filters
 * `:session-store` - specify storage used for Ring session storage. Legal values are `:memory` and `:cookie`. Default is whatever is Ring's default (which is memory storage as of this writing).
 * `:suffix` - the file extension used for views and layouts. Default is `"html"`.
