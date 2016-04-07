@@ -12,8 +12,8 @@
 
 (set-env! :resource-paths #{"src"}
           :dependencies   '[[org.clojure/clojure   "RELEASE"]
-                            [org.clojure/data.json "RELEASE"]
                             [org.clojure/data.xml  "RELEASE"]
+                            [cheshire              "RELEASE"]
                             [ring                  "RELEASE"]
                             [selmer                "RELEASE"]
                             [seancorfield/boot-expectations "RELEASE" :scope "test"]])

@@ -1,8 +1,9 @@
-;; Copyright (c) 2017 Sean Corfield
+;; Copyright (c) 2016 Sean Corfield
 
 (ns basic.expectations.rendering
   (:require [framework.one :as fw1]
-            [expectations :refer [expect more-of]]))
+            [expectations :refer [expect more-of]]
+            [clojure.string :as str]))
 
 (expect (more-of {:keys [status headers body]}
                  200                        status
@@ -22,6 +23,13 @@
                  (some (fn [[h v]] (when (= "Content-Type" h) v)) headers)
                  "{\"h1\":\"Hello!\"}" body)
         ((fw1/start {}) {:uri "/renderer/do_json"}))
+
+(expect (more-of {:keys [status headers body]}
+                 200                   status
+                 "application/json; charset=utf-8"
+                 (some (fn [[h v]] (when (= "Content-Type" h) v)) headers)
+                 "{\"H1\":\"Hello!\"}" body)
+        ((fw1/start {:json-config {:key-fn (comp str/upper-case name)}}) {:uri "/renderer/do_json"}))
 
 (expect (more-of {:keys [status headers body]}
                  500                   status

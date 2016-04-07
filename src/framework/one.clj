@@ -13,7 +13,7 @@
 ;; limitations under the License.
 
 (ns framework.one
-  (:require [clojure.data.json :as json]
+  (:require [cheshire.core :as json]
             [clojure.data.xml :as xml]
             [clojure.stacktrace :as stacktrace]
             [clojure.string :as str]
@@ -407,23 +407,26 @@
 (def ^:private render-types
   "Supported content types and renderers."
   {:html {:type "text/html; charset=utf-8"
-          :body identity}
+          :body (fn [config data] data)}
    :json {:type "application/json; charset=utf-8"
-          :body json/write-str}
+          :body (fn [config data]
+                  (if-let [json-config (:json-config config)]
+                    (json/generate-string data json-config)
+                    (json/generate-string data)))}
    :text {:type "text/plain; charset=utf-8"
-          :body identity}
+          :body (fn [config data] data)}
    :xml  {:type "text/xml; charset=utf-8"
-          :body as-xml}})
+          :body (fn [config data] (as-xml data))}})
 
 (defn render-data-response
   "Given the format and data, return a success response with the appropriate
   content type and the data rendered as the body."
-  [{:keys [status as data]
-    :or   {status 200}}]
+  [config {:keys [status as data]
+           :or   {status 200}}]
   (let [renderer (render-types as)]
     {:status  status
      :headers {"Content-Type" (:type renderer)}
-     :body    ((:body renderer) data)}))
+     :body    ((:body renderer) config data)}))
 
 (defn require-controller
   "Given the request context and a controller namespace, require it.
@@ -508,7 +511,7 @@
     (->> (if-let [redirect (::redirect rc)]
            redirect
            (if-let [render-expr (::render rc)]
-             (render-data-response render-expr)
+             (render-data-response config render-expr)
              (render-page config rc section item exceptional?)))
          (unpack-response rc))))
 
