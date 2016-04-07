@@ -23,17 +23,28 @@ This will create a skeleton FW/1 app in the `myfw1app` folder. You can run it li
 
 If you omit the `PORT` environment variable, it will start up on port 8080 (and may conflict with any Tomcat or other process you have running).
 
+URL Structure
+-------------
+
 In a FW/1 application, Controller functions and Views are automatically located based on standard URL patterns - with site sections and items within each section. Layouts are applied, if provided, in a cascade from item to section to site.
 
 The basic URL pattern is: `/section/item/arg1/value1/arg2/value2?arg3=value3`
 
 The arg / value pairs from the URL are assembled into a map called the request context (and referred to as `rc` in the documentation).
 
+Project Structure
+-----------------
+
 The standard file structure for a FW/1 application is:
 
 * `controllers/` - contains a `.clj` file for each _section_ that needs business logic.
 * `layouts/` - contains per-_item_, per-_section_ and per-site layouts as needed.
 * `views/` - contains a folder for each _section_, containing an HTML view for each _item_.
+
+Your Model can be anywhere since it will be `require`d into your controller namespaces as needed.
+
+Request Lifecycle
+-----------------
 
 Controllers can have _before(rc)_ and _after(rc)_ handler functions that apply to all requests in a _section_.
 
@@ -43,7 +54,7 @@ A URL of `/section/item` will cause FW/1 to call:
 * `(controllers.section/item rc)`, if defined.
 * `(controllers.section/after rc)`, if defined.
 
-A handler function should return the `rc`, updated as necessary.
+A handler function should return the `rc`, updated as necessary. Strictly speaking, FW/1 will also call any `:before` / `:after` handlers defined in the configuration -- see below.
 
 Then FW/1 will look for an HTML view template:
 
@@ -60,7 +71,10 @@ FW/1 looks for a cascade of layouts (again, the suffix configurable):
 * `layouts/default.html`,
  * Replacing `{{body}}` with the view so far. The `:layout` configuration is ignored.
 
-Any controller function also has access to the the FW/1 API:
+Framework API
+-------------
+
+Any controller function also has access to the the FW/1 API (after `require`ing `framework.one`):
 
 * `(cookie rc name)` - returns the value of `name` from the cookie scope.
 * `(cookie rc name value)` - sets `name` to `value` in the cookie scope, and returns the updated `rc`.
@@ -86,6 +100,9 @@ The following symbols from Selmer are exposed as aliases via the FW/1 API:
 By default, FW/1 adds `empty?` as a filter with the same name so the following is possible out of the box:
 
     {% if some-var|empty? %}There are none!{% endif %}
+
+Application Startup & Configuration
+-----------------------------------
 
 As noted above, you can start the server on port 8080, running the User Manager example if you cloned this repository, with:
 
@@ -118,3 +135,10 @@ as a map or as an arbitrary number of inline key / value pairs:
 
 For example: `(fw1/start :default-section "hello" :default-item "world")` will tell FW/1 to use `hello.world` as the default action.
 You could also say: `(fw1/start {:default-section "hello" :default-item "world"})`.
+
+License & Copyright
+===================
+
+Copyright (c) 2015-2016 Sean Corfield.
+
+Distributed under the Apache Source License 2.0.
