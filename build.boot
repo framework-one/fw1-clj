@@ -26,10 +26,12 @@
 (deftask deploy []
   (comp (pom) (jar) (push)))
 
-(deftask run []
-  (merge-env! :resource-paths #{"examples"})
-  (require '[usermanager.main :as app])
-  (apply (resolve 'app/-main) []))
+(deftask run
+  [p port PORT int "The port on which to run the server."]
+  (let [port (or port 8080)]
+    (merge-env! :resource-paths #{"examples"})
+    (require '[usermanager.main :as app])
+    (apply (resolve 'app/-main) [port])))
 
 (deftask with-test []
   (merge-env! :source-paths #{"test"}

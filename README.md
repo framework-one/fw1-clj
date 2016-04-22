@@ -19,9 +19,11 @@ Assuming you have [Boot](http://boot-clj.com) installed, you can create a new sk
 This will create a skeleton FW/1 app in the `myfw1app` folder. You can run it like this:
 
     cd myfw1app
-    PORT=8111 boot run
+    boot run -p 8111
 
-If you omit the `PORT` environment variable, it will start up on port 8080 (and may conflict with any Tomcat or other process you have running).
+If you omit the `-p` / `--port` argument, it will default to port 8080, unless overridden by an environment variable:
+
+    PORT=8111 boot run
 
 URL Structure
 -------------
@@ -110,10 +112,14 @@ As noted above, you can start the server on port 8080, running the User Manager 
 
 You can specify a different port like this:
 
+    boot run -p 8111
+
+or:
+
     PORT=8111 boot run
 
 In your main namespace -- `main.clj` in the example here -- the call to `(fw1/start)` can be passed configuration parameters either
-as a map or as an arbitrary number of inline key / value pairs:
+as a map (preferred) or as an arbitrary number of inline key / value pairs (legacy support):
 
 * `:after` - a function (taking / returning `rc`) which will be called after invoking any controller
 * `:application-key` - the namespace prefix for the application, default none.
