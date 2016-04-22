@@ -12,6 +12,11 @@
 
 (def ^:private users (atom initial-user-data))
 
+(defn reset-data
+  "Call this to set the application back to the initial state."
+  []
+  (reset! users initial-user-data))
+
 (defn- new-id [rows]
   (if (empty? rows) 1 (inc (:id (apply max-key :id rows)))))
 

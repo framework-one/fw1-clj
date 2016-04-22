@@ -1,5 +1,6 @@
 (ns usermanager.main
   (:require [framework.one :as fw1]
+            [usermanager.model.user-manager :as model]
             [com.stuartsierra.component :as component]
             [ring.adapter.jetty :refer [run-jetty]]))
 
@@ -26,10 +27,8 @@
               :application-key (:application-name application)
               :home            "user.default"
               :before (fn [rc]
-                        ;; forces the state in the application model to be
-                        ;; reloaded -- very bad practice!!!
                         (when (fw1/reload? rc)
-                          (require 'usermanager.model.user-manager :reload))
+                          (model/reset-data))
                         rc)}))
 
 ;; lifecycle for the Jetty server in which we run
