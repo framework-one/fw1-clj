@@ -4,9 +4,10 @@
 
 (defn default [rc]
   (assoc rc
-    :message        "Welcome to the Framework One User Manager application demo!"
-    :reload-message (when (reload? rc)
-                      "The framework cache (and application scope) have been reset.")))
+         :message        (str "Welcome to the Framework One User Manager application demo! "
+                              (pr-str (-> (event rc :config) :application)))
+         :reload-message (when (reload? rc)
+                           "The framework cache (and application scope) have been reset.")))
 
 (defn delete [rc]
   (delete-user-by-id (to-long (:id rc)))
@@ -28,4 +29,3 @@
   (let [{:keys [id first-name last-name email department-id]} rc]
     (save-user {:id (to-long id) :first-name first-name :last-name last-name :email email :department-id (to-long department-id)}))
   (redirect rc "/user/list"))
-
