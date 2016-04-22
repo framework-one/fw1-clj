@@ -4,7 +4,7 @@
             [ring.adapter.jetty :refer [run-jetty]]))
 
 ;; implement your application's lifecycle here
-(defrecord Application [state config information]
+(defrecord Application [state config application-name]
   component/Lifecycle
   (start [this]
     (assoc this :state "Running"))
@@ -14,17 +14,20 @@
 (defn my-application
   "Return your application component, fully configured."
   [config]
-  (map->Application {:information "Some Data"
-                     :config      config}))
+  (map->Application {:application-name "usermanager"
+                     :config config}))
 
 (defn my-handler
   "Build the FW/1 handler from an application (component).
-  Provide your application's configuration here."
+  Provide FW/1's configuration here -- which could come
+  from the application component or be placed inline."
   [application]
-  (fw1/start {:application-key "usermanager"
-              :application application
-              :home "user.default"
+  (fw1/start {:application     application
+              :application-key (:application-name application)
+              :home            "user.default"
               :before (fn [rc]
+                        ;; forces the state in the application model to be
+                        ;; reloaded -- very bad practice!!!
                         (when (fw1/reload? rc)
                           (require 'usermanager.model.user-manager :reload))
                         rc)}))
@@ -50,10 +53,13 @@
   (component/using (map->WebServer {:port port :join? join?})
                    [:application]))
 
-;; when working in the REPL you can create a system on any port
-;; and then start and stop it as necessary
 (defn new-system
-  "Build a default system to run."
+  "Build a default system to run. In the REPL:
+
+  (def system (new-system 8888))
+  (alter-var-root #'system component/start)
+
+  (alter-var-root #'system component/stop)"
   ([port] (new-system port false))
   ([port join?]
    (component/system-map :application (my-application {:port port :repl? (not join?)})
