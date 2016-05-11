@@ -1,4 +1,4 @@
-FW/1 in Clojure [![Join the chat at https://gitter.im/frameork-one/fw1-clj](https://badges.gitter.im/frameork-one/fw1-clj.svg)](https://gitter.im/frameork-one/fw1-clj?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+FW/1 in Clojure [![Join the chat at https://gitter.im/framework-one/fw1-clj](https://badges.gitter.im/framework-one/fw1-clj.svg)](https://gitter.im/framework-one/fw1-clj?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 ===============
 
 This is a port from CFML to Clojure of Framework One (FW/1).
