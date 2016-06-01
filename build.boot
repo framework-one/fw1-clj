@@ -27,7 +27,9 @@
   (comp (pom) (jar) (push)))
 
 (deftask examples []
-  (merge-env! :resource-paths #{"examples"})
+  (merge-env! :resource-paths #{"examples"}
+              :dependencies   '[[org.clojure/java.jdbc  "RELEASE"]
+                                [org.apache.derby/derby "RELEASE"]])
   identity)
 
 (deftask run

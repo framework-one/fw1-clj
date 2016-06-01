@@ -2,13 +2,21 @@
   (:require [framework.one :refer :all]
             [usermanager.model.user-manager :refer :all]))
 
+(def ^:private changes
+  "Count the number of changes (since the last reload)."
+  (atom 0))
+
+(defn after [rc]
+  (assoc rc :changes @changes))
+
 (defn default [rc]
   (assoc rc
     :message        "Welcome to the Framework One User Manager application demo!"
     :reload-message (when (reload? rc)
-                      "The framework cache (and application scope) have been reset.")))
+                      "The framework cache (and the application's state) have been reset.")))
 
 (defn delete [rc]
+  (swap! changes inc)
   (delete-user-by-id (to-long (:id rc)))
   (redirect rc "/user/list"))
 
@@ -25,7 +33,7 @@
     (assoc rc :users (map add-department users))))
 
 (defn save [rc]
+  (swap! changes inc)
   (let [{:keys [id first-name last-name email department-id]} rc]
     (save-user {:id (to-long id) :first-name first-name :last-name last-name :email email :department-id (to-long department-id)}))
   (redirect rc "/user/list"))
-
