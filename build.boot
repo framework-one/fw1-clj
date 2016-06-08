@@ -1,5 +1,5 @@
 (def project 'framework-one)
-(def version "0.6.0")
+(def version "0.6.1-SNAPSHOT")
 
 (task-options!
  pom {:project     project
@@ -29,7 +29,9 @@
   (comp (pom) (jar) (push)))
 
 (deftask examples []
-  (merge-env! :resource-paths #{"examples"})
+  (merge-env! :resource-paths #{"examples"}
+              :dependencies   '[[org.clojure/java.jdbc  "RELEASE"]
+                                [org.apache.derby/derby "RELEASE"]])
   identity)
 
 (deftask run

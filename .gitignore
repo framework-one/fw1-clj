@@ -12,3 +12,5 @@ pom.xml
 /pom.xml.asc
 /.nrepl-port
 /.nrepl-history
+/derby.log
+/fw1_usermanager

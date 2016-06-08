@@ -8,6 +8,8 @@
 (defrecord Application [state config application-name]
   component/Lifecycle
   (start [this]
+    ;; set up database if necessary
+    (model/setup-database)
     (assoc this :state "Running"))
   (stop  [this]
     (assoc this :state "Stopped")))
@@ -25,11 +27,7 @@
   [application]
   (fw1/start {:application     application
               :application-key (:application-name application)
-              :home            "user.default"
-              :before (fn [rc]
-                        (when (fw1/reload? rc)
-                          (model/reset-data))
-                        rc)}))
+              :home            "user.default"}))
 
 ;; lifecycle for the Jetty server in which we run
 (defrecord WebServer [port join? http-server application]
