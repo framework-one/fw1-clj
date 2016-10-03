@@ -3,16 +3,14 @@
             [usermanager.model.user-manager :as model]
             [usermanager.jetty :as jetty]
             [usermanager.http-kit :as http-kit]
-            [com.stuartsierra.component :as component]
-            [compojure.core :refer :all]
-            [compojure.route :as route]))
+            [com.stuartsierra.component :as component]))
 
 ;; Implement your application's lifecycle here:
 ;; Although the application config is not used in this simple
 ;; case, it probably would be in the general case -- and the
 ;; application state here is trivial but could be more complex.
-(defrecord Application [config ; parameters
-                        state] ; state
+(defrecord Application [config ; configuration (unused)
+                        state] ; behavior
   component/Lifecycle
   (start [this]
     ;; set up database if necessary
@@ -35,15 +33,9 @@
   "Build the FW/1 handler from the application. This is where you can
   specify the FW/1 configuration and the application routes."
   [application]
-  (let-routes [fw1 (fw1/configure-router {:application     application
-                                          :application-key "usermanager"
-                                          :home            "user.default"})]
-    (route/resources "/")
-    (ANY "/" [] (fw1))
-    (context "/:section" [section]
-             (ANY "/"             []     (fw1 (keyword section "default")))
-             (ANY "/:item"        [item] (fw1 (keyword section item)))
-             (ANY "/:item/id/:id" [item] (fw1 (keyword section item))))))
+  (fw1/default-handler application
+                       {:application-key "usermanager"
+                        :home            "user.default"}))
 
 (defn new-system
   "Build a default system to run. In the REPL:

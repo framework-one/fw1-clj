@@ -15,14 +15,14 @@
         {% else %}
             {% for user in users %}
                 <tr>
-			        <td><a href="/user/form/id/{{user.id}}">{{user.id}}</a></td>
+			        <td><a href="/user/form/{{user.id}}">{{user.id}}</a></td>
 			        <td class="name">
-                        <a href="/user/form/id/{{user.id}}">{{user.last-name}},
+                        <a href="/user/form/{{user.id}}">{{user.last-name}},
                           {{user.first-name}}</a>
                     </td>
 			        <td class="email">{{user.email}}</td>
 			        <td class="department">{{user.department}}</td>
-			        <td class="delete"><a href="/user/delete/id/{{user.id}}">DELETE</a></td>
+			        <td class="delete"><a href="/user/delete/{{user.id}}">DELETE</a></td>
 		        </tr>
             {% endfor %}
         {% endif %}

@@ -18,6 +18,8 @@
             [clojure.stacktrace :as stacktrace]
             [clojure.string :as str]
             [clojure.walk :as walk]
+            [compojure.core :refer :all]
+            [compojure.route :as route]
             [ring.middleware.flash :as ring-f]
             [ring.middleware.params :as ring-p]
             [ring.middleware.resource :as ring-r]
@@ -478,9 +480,10 @@
     (fn configured-fw1
       ([] (configured-fw1 (keyword (first  (:home config))
                                    (second (:home config)))))
-      ([section-item]
-       (let [section (namespace section-item)
-             item    (name section-item)]
+      ([section-item] ; :section or :section/item
+       (let [[section item] (if (namespace section-item)
+                              [(namespace section-item) (name section-item)]
+                              [(name section-item) (second (:home config))])]
          (reduce (fn [handler middleware] (middleware handler))
                  (fn [req]
                    (try
@@ -500,3 +503,16 @@
                                 (assoc :uri (str "/" section "/" item))
                                 (assoc-in [:params :exception] e))))))))
                  (:middleware config)))))))
+
+(defn default-handler
+  "Build a default FW/1 handler from the application and configuration.
+  This uses a basic set of routes that should provide roughly the same
+  default behavior as the previous (0.6.0) convention-based routes."
+  [application config]
+  (let-routes [fw1 (configure-router (assoc config :application application))]
+    (route/resources "/")
+    (ANY "/" [] (fw1))
+    (context "/:section" [section]
+             (ANY "/"                  []     (fw1 (keyword section)))
+             (ANY "/:item"             [item] (fw1 (keyword section item)))
+             (ANY "/:item/:id{[0-9]+}" [item] (fw1 (keyword section item))))))

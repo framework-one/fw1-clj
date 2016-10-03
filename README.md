@@ -30,7 +30,19 @@ URL Structure
 
 In a FW/1 application, Controller functions and Views are automatically located based on standard patterns - with site sections and items within each section. Layouts are applied, if provided, in a cascade from item to section to site. You specify the site and item as a namespaced keyword `:section/item` and FW/1 will locate Controllers, Views, and Layouts based on that.
 
-Actual URL route processing is handled via Compojure. The `usermanager` example provides the best introduction to this, via the `fw1-handler` function:
+Actual URL route processing is handled via Compojure and FW/1 provides a default set of routes that should serve most purposes. The `usermanager` example leverages that default in the `fw1-handler` function:
+
+``` clojure
+(defn fw1-handler
+  "Build the FW/1 handler from the application. This is where you can
+  specify the FW/1 configuration and the application routes."
+  [application]
+  (fw1/default-handler application
+                       {:application-key "usermanager"
+                        :home            "user.default"}))
+```
+
+The default handler behavior is equivalent to this:
 
 ``` clojure
 (defn fw1-handler
@@ -43,12 +55,12 @@ Actual URL route processing is handled via Compojure. The `usermanager` example 
     (route/resources "/")
     (ANY "/" [] (fw1))
     (context "/:section" [section]
-             (ANY "/"             []     (fw1 (keyword section "default")))
+             (ANY "/"             []     (fw1 (keyword section)))
              (ANY "/:item"        [item] (fw1 (keyword section item)))
              (ANY "/:item/id/:id" [item] (fw1 (keyword section item))))))
 ```
 
-The handler is assumed to be initialized with an application Component. It obtains a router from FW/1 by providing configuration for FW/1. It then defines routes using Compojure, starting with a general `resources` route, followed by a few standard route patterns that map to `:section/item` keywords. In the example, the only valid section is `user`.
+As above, the handler is initialized with an application Component. It obtains a router from FW/1 by providing configuration for FW/1. It then defines routes using Compojure, starting with a general `resources` route, followed by a few standard route patterns that map to `:section/item` keywords.
 
 Project Structure
 -----------------
