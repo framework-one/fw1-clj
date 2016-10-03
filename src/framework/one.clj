@@ -355,44 +355,30 @@
           resp
           [:session :cookies :flash :headers]))
 
-(defn adjust-rc-by-status
-  "Given the 'rc', a (possibly nil) HTTP status, and a new route,
-  modify the 'rc' to indicate a redirect or a render if appropriate."
-  [rc status route]
-  (case status
-    (301 302) (redirect rc route)
-    403       (render-html rc 403 "Forbidden")
-    404       (render-html rc 404 "Not Found")
-    405       (render-html rc 405 "Method Not Allowed")
-    rc))
-
 (defn render-request
-  "Given the application configuration, the specific section, item, HTTP status,
-  the trailing routes pieces, and a (Ring) request, convert that to a FW/1
-  request context 'rc' and locate and run the controller, then either redirect,
-  render an expression as data, or try to render views and layouts."
-  ([config section item req]
-   (render-request config section item 200 nil req))
-  ([config section item status route req]
-   (let [exceptional? (::handling-exception req)
-         rc (-> (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
-                (pack-request req)
-                (event :action  (str section "." item))
-                (event :section section)
-                (event :item    item)
-                (event :config  config)
-                (adjust-rc-by-status status route))
-         controller-ns (symbol (->clj (str (stem config ".") "controllers." section)))
-         _ (require-controller rc controller-ns)
-         rc (reduce (partial apply-controller config controller-ns)
-                    rc
-                    [:before "before" item "after" :after])]
-     (->> (if-let [redirect (::redirect rc)]
-            redirect
-            (if-let [render-expr (::render rc)]
-              (render-data-response config render-expr)
-              (render-page config rc section item exceptional?)))
-          (unpack-response rc)))))
+  "Given the application configuration, the specific section, item, and a (Ring)
+  request, convert that to a FW/1 request context 'rc' and locate and run the
+  controller, then either redirect,render an expression as data, or try to
+  render views and layouts."
+  [config section item req]
+  (let [exceptional? (::handling-exception req)
+        rc (-> (walk/keywordize-keys (:params req))
+               (pack-request req)
+               (event :action  (str section "." item))
+               (event :section section)
+               (event :item    item)
+               (event :config  config))
+        controller-ns (symbol (->clj (str (stem config ".") "controllers." section)))
+        _ (require-controller rc controller-ns)
+        rc (reduce (partial apply-controller config controller-ns)
+                   rc
+                   [:before "before" item "after" :after])]
+    (->> (if-let [redirect (::redirect rc)]
+           redirect
+           (if-let [render-expr (::render rc)]
+             (render-data-response config render-expr)
+             (render-page config rc section item exceptional?)))
+         (unpack-response rc))))
 
 (defn render-options
   "Given the application configuration and a Ring request, return an OPTIONS response."
