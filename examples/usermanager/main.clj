@@ -1,6 +1,7 @@
 (ns usermanager.main
   (:require [framework.one :as fw1]
             [usermanager.model.user-manager :as model]
+            [usermanager.jetty :as server]
             [com.stuartsierra.component :as component]
             [compojure.core :refer :all]
             [compojure.route :as route]
@@ -44,30 +45,6 @@
              (ANY "/:item"        [item] (fw1 (keyword section item)))
              (ANY "/:item/id/:id" [item] (fw1 (keyword section item))))))
 
-;; lifecycle for the Jetty server in which we run
-(defrecord WebServer [handler-fn port join? ; parameters
-                      application           ; dependencies
-                      http-server]          ; state
-  component/Lifecycle
-  (start [this]
-    (if (:http-server this)
-      this
-      (assoc this :http-server (run-jetty (handler-fn application)
-                                          {:port port :join? join?}))))
-  (stop  [this]
-    (if (:http-server this)
-      (do
-        (.stop (:http-server this))
-        (assoc this :http-server nil))
-      this)))
-
-(defn web-server
-  "Return a WebServer component that depends on the application."
-  [handler-fn port join?]
-  (component/using (map->WebServer {:handler-fn handler-fn
-                                    :port port :join? join?})
-                   [:application]))
-
 (defn new-system
   "Build a default system to run. In the REPL:
 
@@ -78,7 +55,7 @@
   ([port] (new-system port false))
   ([port join?]
    (component/system-map :application (my-application {:repl? (not join?)})
-                         :web-server  (web-server #'fw1-handler port join?))))
+                         :web-server  (server/web-server #'fw1-handler port join?))))
 
 (defn -main
   [& [port]]
