@@ -18,8 +18,11 @@
             [clojure.stacktrace :as stacktrace]
             [clojure.string :as str]
             [clojure.walk :as walk]
+            [com.stuartsierra.component :as component]
+            [compojure.coercions :refer :all]
             [compojure.core :refer :all]
             [compojure.route :as route]
+            [ring.adapter.jetty :as jetty]
             [ring.middleware.flash :as ring-f]
             [ring.middleware.params :as ring-p]
             [ring.middleware.resource :as ring-r]
@@ -515,4 +518,44 @@
     (context "/:section" [section]
              (ANY "/"                  []     (fw1 (keyword section)))
              (ANY "/:item"             [item] (fw1 (keyword section item)))
-             (ANY "/:item/:id{[0-9]+}" [item] (fw1 (keyword section item))))))
+             (ANY "/:item/:id{[0-9]+}" [item id :<< as-int]
+                  (fw1 (keyword section item))))))
+
+;; lifecycle for the specified web server in which we run
+(defrecord WebServer [handler-fn server port ; parameters
+                      application            ; dependencies
+                      http-server shutdown]  ; state
+  component/Lifecycle
+  (start [this]
+    (if (:http-server this)
+      this
+      (let [start-server (case (:server this)
+                           :jetty    jetty/run-jetty
+                           :http-kit (do
+                                       (require '[org.httpkit.server :as kit])
+                                       (resolve (symbol "kit/run-server")))
+                           (throw (ex-info "Unsupported web server"
+                                           {:server (:server this)})))]
+        (assoc this
+               :http-server (start-server ((:handler-fn this) application)
+                                          {:port (:port this)})
+               :shutdown (promise)))))
+  (stop  [this]
+    (if (:http-server this)
+      (do
+        (case (:server this)
+          :jetty    (.stop (:http-server this))
+          :http-kit ((:http-server this))
+          (throw (ex-info "Unsupported web server"
+                          {:server (:server this)})))
+        (assoc this :http-server nil)
+        (deliver (:shutdown this) true))
+      this)))
+
+(defn web-server
+  "Return a WebServer component that depends on the application."
+  ([handler-fn port] (web-server handler-fn port :jetty))
+  ([handler-fn port server]
+   (component/using (map->WebServer {:handler-fn handler-fn
+                                     :port port :server server})
+                    [:application])))

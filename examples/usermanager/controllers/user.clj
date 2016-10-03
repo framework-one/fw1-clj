@@ -19,11 +19,11 @@
 
 (defn delete [rc]
   (swap! changes inc)
-  (delete-user-by-id (to-long (:id rc)))
+  (delete-user-by-id (:id rc))
   (redirect rc "/user/list"))
 
 (defn form [rc]
-  (let [user (get-user-by-id (to-long (:id rc)))]
+  (let [user (get-user-by-id (:id rc))]
     (assoc rc :user user
            :departments (get-departments))))
 
@@ -37,6 +37,7 @@
 (defn save [rc]
   (swap! changes inc)
   (let [{:keys [id first-name last-name email department-id]} rc]
+    ;; note: we still need to-long here since id is a form variable:
     (save-user {:id (to-long id) :first-name first-name :last-name last-name
                 :email email :department-id (to-long department-id)}))
   (redirect rc "/user/list"))

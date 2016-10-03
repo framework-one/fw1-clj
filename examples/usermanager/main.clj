@@ -1,8 +1,6 @@
 (ns usermanager.main
   (:require [framework.one :as fw1]
             [usermanager.model.user-manager :as model]
-            [usermanager.jetty :as jetty]
-            [usermanager.http-kit :as http-kit]
             [com.stuartsierra.component :as component]))
 
 ;; Implement your application's lifecycle here:
@@ -46,15 +44,11 @@
   (alter-var-root #'system component/start)
 
   (alter-var-root #'system component/stop)"
-  ([port] (new-system port :jetty false))
-  ([port server] (new-system port server false))
-  ([port server join?]
-   (let [start-server (case server
-                        :jetty jetty/web-server
-                        :http-kit http-kit/web-server
-                        (throw (ex-info "Unknown web server" {:server server})))]
-     (component/system-map :application (my-application {:repl? (not join?)})
-                           :web-server  (start-server #'fw1-handler port join?)))))
+  ([port] (new-system port :jetty true))
+  ([port server] (new-system port server true))
+  ([port server repl?]
+   (component/system-map :application (my-application {:repl? repl?})
+                         :web-server  (fw1/web-server #'fw1-handler port server))))
 
 (defn -main
   [& [port server]]
@@ -62,4 +56,6 @@
         port (cond-> port (string? port) Integer/parseInt)
         server (or server (get (System/getenv) "SERVER" "jetty"))]
     (println "Starting up on port" port "with server" server)
-    (component/start (new-system port (keyword server) true))))
+    (-> (component/start (new-system port (keyword server) false))
+        ;; wait for the web server to shutdown
+        :web-server :shutdown deref)))
