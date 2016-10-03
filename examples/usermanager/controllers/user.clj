@@ -1,4 +1,5 @@
 (ns usermanager.controllers.user
+  (:refer-clojure :exclude [list])
   (:require [framework.one :refer :all]
             [usermanager.model.user-manager :refer :all]))
 
