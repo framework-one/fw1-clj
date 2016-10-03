@@ -6,8 +6,12 @@
             [compojure.route :as route]
             [ring.adapter.jetty :refer [run-jetty]]))
 
-;; implement your application's lifecycle here
-(defrecord Application [state config application-name]
+;; Implement your application's lifecycle here:
+;; Although the application config is not used in this simple
+;; case, it probably would be in the general case -- and the
+;; application state here is trivial but could be more complex.
+(defrecord Application [config ; parameters
+                        state] ; state
   component/Lifecycle
   (start [this]
     ;; set up database if necessary
@@ -17,43 +21,38 @@
     (assoc this :state "Stopped")))
 
 (defn my-application
-  "Return your application component, fully configured."
+  "Return your application component, fully configured.
+  In this simple case, we just pass the whole configuration into
+  the application (:repl?)"
   [config]
-  (map->Application {:application-name "usermanager"
-                     :config config}))
+  (map->Application {:config config}))
 
-(defn my-router
-  "Build the FW/1 router from an application (component).
-  Provide FW/1's configuration here -- which could come
-  from the application component or be placed inline."
+;; This is the framework-specific portion, that builds a Ring handler
+;; from the application component (defined above). The handler is passed
+;; into the web server component (below).
+(defn fw1-handler
+  "Build the FW/1 handler from the application. This is where you can
+  specify the FW/1 configuration and the application routes."
   [application]
-  (fw1/configure-router {:application     application
-                         :application-key (:application-name application)
-                         :home            "user.default"}))
-
-(defn my-handler
-  "Build the FW/1 handler using a FW/1 router and Compojure
-  routes."
-  [application]
-  (let-routes [fw1 (my-router application)]
-    (GET "/" [] (fw1 :user/default))
-    (route/resources "/assets" {:root "/usermanager/assets"})
+  (let-routes [fw1 (fw1/configure-router {:application     application
+                                          :application-key "usermanager"
+                                          :home            "user.default"})]
     (GET "/favicon.ico" [] (route/not-found "No favicon.ico"))
-    (context "/user" []
-             (GET  "/"              [] (fw1 :user/default))
-             (GET  "/list"          [] (fw1 :user/list))
-             (GET  "/form"          [] (fw1 :user/form))
-             (GET  "/form/id/:id"   [] (fw1 :user/form))
-             (POST "/save"          [] (fw1 :user/save))
-             (GET  "/delete/id/:id" [] (fw1 :user/delete)))))
+    (ANY "/" [] (fw1))
+    (context "/:section" [section]
+             (ANY "/"             []     (fw1 (keyword section "default")))
+             (ANY "/:item"        [item] (fw1 (keyword section item)))
+             (ANY "/:item/id/:id" [item] (fw1 (keyword section item))))))
 
 ;; lifecycle for the Jetty server in which we run
-(defrecord WebServer [port join? http-server application]
+(defrecord WebServer [handler-fn port join? ; parameters
+                      application           ; dependencies
+                      http-server]          ; state
   component/Lifecycle
   (start [this]
     (if (:http-server this)
       this
-      (assoc this :http-server (run-jetty (my-handler application)
+      (assoc this :http-server (run-jetty (handler-fn application)
                                           {:port port :join? join?}))))
   (stop  [this]
     (if (:http-server this)
@@ -64,8 +63,9 @@
 
 (defn web-server
   "Return a WebServer component that depends on the application."
-  [port join?]
-  (component/using (map->WebServer {:port port :join? join?})
+  [handler-fn port join?]
+  (component/using (map->WebServer {:handler-fn handler-fn
+                                    :port port :join? join?})
                    [:application]))
 
 (defn new-system
@@ -77,8 +77,8 @@
   (alter-var-root #'system component/stop)"
   ([port] (new-system port false))
   ([port join?]
-   (component/system-map :application (my-application {:port port :repl? (not join?)})
-                         :web-server  (web-server port join?))))
+   (component/system-map :application (my-application {:repl? (not join?)})
+                         :web-server  (web-server #'fw1-handler port join?))))
 
 (defn -main
   [& [port]]
