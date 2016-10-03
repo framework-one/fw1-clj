@@ -49,6 +49,8 @@
   "Build a default system to run. In the REPL:
 
   (def system (new-system 8888))
+  ;; or
+  (def system (new-system 8888 :http-kit))
   (alter-var-root #'system component/start)
 
   (alter-var-root #'system component/stop)"
