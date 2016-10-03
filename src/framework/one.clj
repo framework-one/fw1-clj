@@ -483,25 +483,20 @@
              item    (name section-item)]
          (reduce (fn [handler middleware] (middleware handler))
                  (fn [req]
-                   ;; since favicon.ico is commonly requested but often not
-                   ;; present, we special case it and return 404 Not Found
-                   ;; rather than look for (and fail to find) that action!
-                   (if (= "/favicon.ico" (:uri req))
-                     (not-found)
-                     (try
-                       (if (= :options (:request-method req))
-                         (render-options config req)
-                         (render-request config section item req))
-                       (catch Exception e
-                         (if (::handling-exception req)
-                           (do
-                             (stacktrace/print-stack-trace e)
-                             (html-response 500 (str e)))
-                           (let [section (first  (:error config))
-                                 item    (second (:error config))]
-                             ((configured-fw1 (keyword section item))
-                              (-> req
-                                  (assoc ::handling-exception true)
-                                  (assoc :uri (str "/" section "/" item))
-                                  (assoc-in [:params :exception] e)))))))))
+                   (try
+                     (if (= :options (:request-method req))
+                       (render-options config req)
+                       (render-request config section item req))
+                     (catch Exception e
+                       (if (::handling-exception req)
+                         (do
+                           (stacktrace/print-stack-trace e)
+                           (html-response 500 (str e)))
+                         (let [section (first  (:error config))
+                               item    (second (:error config))]
+                           ((configured-fw1 (keyword section item))
+                            (-> req
+                                (assoc ::handling-exception true)
+                                (assoc :uri (str "/" section "/" item))
+                                (assoc-in [:params :exception] e))))))))
                  (:middleware config)))))))
