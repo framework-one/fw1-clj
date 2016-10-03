@@ -24,6 +24,7 @@
                             [com.stuartsierra/component "0.3.1"]
                                         ; standardized routing
                             [compojure           "1.6.0-beta1"]
+                            [http-kit            "2.2.0" :scope "test"]
                             [seancorfield/boot-expectations "RELEASE" :scope "test"]])
 
 (require '[seancorfield.boot-expectations :refer [expectations]])
@@ -41,11 +42,12 @@
   identity)
 
 (deftask run
-  [p port PORT int "The port on which to run the server."]
+  [p port   PORT   int "The port on which to run the server."
+   s server SERVER str "The server type to use."]
   (comp (examples)
         (let [port (or port 8080)]
           (require '[usermanager.main :as app])
-          (apply (resolve 'app/-main) [port])
+          ((resolve 'app/-main) port server)
           identity)))
 
 (deftask with-test []

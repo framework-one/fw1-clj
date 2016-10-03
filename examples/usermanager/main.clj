@@ -1,11 +1,11 @@
 (ns usermanager.main
   (:require [framework.one :as fw1]
             [usermanager.model.user-manager :as model]
-            [usermanager.jetty :as server]
+            [usermanager.jetty :as jetty]
+            [usermanager.http-kit :as http-kit]
             [com.stuartsierra.component :as component]
             [compojure.core :refer :all]
-            [compojure.route :as route]
-            [ring.adapter.jetty :refer [run-jetty]]))
+            [compojure.route :as route]))
 
 ;; Implement your application's lifecycle here:
 ;; Although the application config is not used in this simple
@@ -52,13 +52,20 @@
   (alter-var-root #'system component/start)
 
   (alter-var-root #'system component/stop)"
-  ([port] (new-system port false))
-  ([port join?]
-   (component/system-map :application (my-application {:repl? (not join?)})
-                         :web-server  (server/web-server #'fw1-handler port join?))))
+  ([port] (new-system port :jetty false))
+  ([port server] (new-system port server false))
+  ([port server join?]
+   (let [start-server (case server
+                        :jetty jetty/web-server
+                        :http-kit http-kit/web-server
+                        (throw (ex-info "Unknown web server" {:server server})))]
+     (component/system-map :application (my-application {:repl? (not join?)})
+                           :web-server  (start-server #'fw1-handler port join?)))))
 
 (defn -main
-  [& [port]]
+  [& [port server]]
   (let [port (or port (get (System/getenv) "PORT" 8080))
-        port (cond-> port (string? port) Integer/parseInt)]
-    (component/start (new-system port true))))
+        port (cond-> port (string? port) Integer/parseInt)
+        server (or server (get (System/getenv) "SERVER" "jetty"))]
+    (println "Starting up on port" port "with server" server)
+    (component/start (new-system port (keyword server) true))))
