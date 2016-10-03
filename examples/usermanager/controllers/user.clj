@@ -11,9 +11,10 @@
 
 (defn default [rc]
   (assoc rc
-    :message        "Welcome to the Framework One User Manager application demo!"
-    :reload-message (when (reload? rc)
-                      "The framework cache (and the application's state) have been reset.")))
+         :message        (str "Welcome to the Framework One User Manager application demo! "
+                              (pr-str (-> (event rc :config) :application)))
+         :reload-message (when (reload? rc)
+                           "The framework cache (and application scope) have been reset.")))
 
 (defn delete [rc]
   (swap! changes inc)

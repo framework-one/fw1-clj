@@ -10,7 +10,7 @@
 		</tr>
 	</thead>
 	<tbody>
-        {% if users!empty? %}
+        {% if users|empty? %}
             <tr><td colspan="5">No users exist but <a href="/user/form">new ones can be added</a>.</td></tr>
         {% else %}
             {% for user in users %}
