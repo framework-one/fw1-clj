@@ -1,16 +1,16 @@
 FW/1 in Clojure [![Join the chat at https://gitter.im/framework-one/fw1-clj](https://badges.gitter.im/framework-one/fw1-clj.svg)](https://gitter.im/framework-one/fw1-clj?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 ===============
 
-This is a port from CFML to Clojure of Framework One (FW/1).
+This is based on a port from CFML to Clojure of Framework One (FW/1). Most concepts carry over but, like Clojure itself, the emphasis is on simplicity.
 
-FW/1 in Clojure is based on [Ring](https://github.com/ring-clojure/ring) and [Selmer](https://github.com/yogthos/Selmer).
-FW/1 is a lightweight, convention-based MVC framework.
+FW/1 in Clojure is based on [Ring](https://github.com/ring-clojure/ring), [Compojure](https://github.com/weavejester/compojure), and [Selmer](https://github.com/yogthos/Selmer).
+FW/1 is a lightweight, (partially) convention-based MVC framework.
 
 The easiest way to get started with FW/1 is to use the
 [fw1-template](https://github.com/framework-one/fw1-template) template
 for Boot. The template can create a basic FW/1 skeleton
 project for you that "just works" and provides the directory structure
-and some basic files for you to get started with. 
+and some basic files for you to get started with.
 
 Assuming you have [Boot](http://boot-clj.com) installed, you can create a new skeleton FW/1 app like this:
 
@@ -28,11 +28,27 @@ If you omit the `-p` / `--port` argument, it will default to port 8080, unless o
 URL Structure
 -------------
 
-In a FW/1 application, Controller functions and Views are automatically located based on standard URL patterns - with site sections and items within each section. Layouts are applied, if provided, in a cascade from item to section to site.
+In a FW/1 application, Controller functions and Views are automatically located based on standard patterns - with site sections and items within each section. Layouts are applied, if provided, in a cascade from item to section to site. You specify the site and item as a namespaced keyword `:section/item` and FW/1 will locate Controllers, Views, and Layouts based on that.
 
-The basic URL pattern is: `/section/item/arg1/value1/arg2/value2?arg3=value3`
+Actual URL route processing is handled via Compojure. The `usermanager` example provides the best introduction to this, via the `fw1-handler` function:
 
-The arg / value pairs from the URL are assembled into a map called the request context (and referred to as `rc` in the documentation).
+``` clojure
+(defn fw1-handler
+  "Build the FW/1 handler from the application. This is where you can
+  specify the FW/1 configuration and the application routes."
+  [application]
+  (let-routes [fw1 (fw1/configure-router {:application     application
+                                          :application-key "usermanager"
+                                          :home            "user.default"})]
+    (route/resources "/")
+    (ANY "/" [] (fw1))
+    (context "/:section" [section]
+             (ANY "/"             []     (fw1 (keyword section "default")))
+             (ANY "/:item"        [item] (fw1 (keyword section item)))
+             (ANY "/:item/id/:id" [item] (fw1 (keyword section item))))))
+```
+
+The handler is assumed to be initialized with an application Component. It obtains a router from FW/1 by providing configuration for FW/1. It then defines routes using Compojure, starting with a general `resources` route, followed by a few standard route patterns that map to `:section/item` keywords. In the example, the only valid section is `user`.
 
 Project Structure
 -----------------
@@ -99,10 +115,6 @@ The following symbols from Selmer are exposed as aliases via the FW/1 API:
 
 * `add-tag!`, `add-filter!`
 
-By default, FW/1 adds `empty?` as a filter with the same name so the following is possible out of the box:
-
-    {% if some-var|empty? %}There are none!{% endif %}
-
 Application Startup & Configuration
 -----------------------------------
 
@@ -118,7 +130,7 @@ or:
 
     PORT=8111 boot run
 
-In your main namespace -- `main.clj` in the example here -- the call to `(fw1/start)` can be passed configuration parameters either
+In your main namespace -- `main.clj` in the example here -- the call to `(fw1/configure-router)` can be passed configuration parameters either
 as a map (preferred) or as an arbitrary number of inline key / value pairs (legacy support):
 
 * `:after` - a function (taking / returning `rc`) which will be called after invoking any controller
@@ -139,8 +151,8 @@ as a map (preferred) or as an arbitrary number of inline key / value pairs (lega
 * `:session-store` - specify storage used for Ring session storage. Legal values are `:memory` and `:cookie`. Default is whatever is Ring's default (which is memory storage as of this writing).
 * `:suffix` - the file extension used for views and layouts. Default is `"html"`.
 
-For example: `(fw1/start :default-section "hello" :default-item "world")` will tell FW/1 to use `hello.world` as the default action.
-You could also say: `(fw1/start {:default-section "hello" :default-item "world"})`.
+For example: `(fw1/configure-router :default-section "hello" :default-item "world")` will tell FW/1 to use `hello.world` as the default action.
+You could also say: `(fw1/configure-router {:default-section "hello" :default-item "world"})`.
 
 License & Copyright
 ===================
