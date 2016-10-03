@@ -159,124 +159,7 @@
 
 ;; FW/1 implementation
 
-;; low-level route-matching code
-
-(defn parts
-  "Given a URI (beginning with /), return a sequence of its parts with
-  the leading empty string removed:
-  /foo/bar/baz/quuz -> [foo bar baz quux]"
-  [uri]
-  (rest (.split uri "/")))
-
-(def ^:private http-verbs
-  "The HTTP verbs we support in routes."
-  [:get :post :put :patch :delete])
-
-(def ^:private route-verbs
-  "Match from $VERB => :verb."
-  (reduce (fn [m v] (assoc m (str "$" (str/upper-case (name v))) v)) {} http-verbs))
-
-(defn compile-route
-  "Given a route pattern, perform some 'precompilation' on it to turn it into
-  a sequence of parts, preceded by a verb match. Parts that begin with : are turned
-  into keywords and represent variables to bind in the patterns:
-  $GET/product/:id -> [:get [product :id]]
-  If the route is an HTTP status code, a colon, and a path, then that is a special
-  type of route that produces a pair of the status code and the path."
-  [route]
-  (let [[_ status route'] (re-find #"(\d\d\d):(.*)" route)]
-    (if status
-      [:any [(to-long status) route']]
-      [(or (and (.startsWith route "$")
-                (some (fn [[r v]] (when (.startsWith route r) v)) route-verbs))
-           :any)
-       (map (fn [part]
-              (if (.startsWith part ":")
-                (keyword (.substring part 1))
-                part))
-            (if (= "*" route)
-              ["*"]
-              (parts route)))])))
-
-(defn match-part
-  "Given the corresponding parts of a pattern and a route, return truthy if
-  they match. If the pattern is a variable to bind (a keyword), return a map
-  of the variable to the route part, else match the parts literally."
-  [p r]
-  (cond (keyword? p) (when r {p r})
-        (= r p)      p
-        :else        nil))
-
-(defn substitute-route
-  "Given a new route, a lookup (of matched variables), and a tail (of unmatched
-  parts of the original route), return a sequence representing the transformed
-  route:
-  [product :id] {:id 123} [baz quux] -> [product 123 baz quux]
-  We return a pair of HTTP status code and new route, where the status code
-  will be nil unless the route itself specifies it."
-  [route lookup tail]
-  (if (number? (first route))
-    [(first route) (second route)]
-    [nil (concat (map
-                  (fn [part]
-                    (if (keyword? part)
-                      (lookup part)
-                      part))
-                  route) tail)]))
-
-(defn matches-route
-  "Given a 'compiled' URL, an HTTP method, and a pattern (which is a verb match
-  and a 'compiled' route pattern), return the unmatched tail of the URL. If nothing
-  matches, return ::not-found, since [] represents a match on an empty route (i.e., /)"
-  [compiled-url method [verb compiled-route]]
-  (cond (and (not= :any verb)
-             (not= verb method))
-        ;; mismatch on verb
-        ::not-found
-        ;; empty route matches anything
-        (empty? compiled-route)
-        []
-        ;; wildcard route matches everything
-        (= ["*"] compiled-route)
-        compiled-url
-        ;; perform piece-wise match
-        :else
-        (let [matches (take-while identity
-                                  (map match-part
-                                       (concat compiled-route (repeat nil))
-                                       (concat compiled-url (repeat nil))))]
-          ;; matched whole route
-          (if (<= (count compiled-route) (count matches))
-            matches
-            ::not-found))))
-
-(defn pre-compile-routes
-  "Given the route patterns (a vector of single-pattern maps), return a pair of
-  all the patterns 'compiled' and all the corresponding mapped routes 'compiled'."
-  [routes]
-  (let [all-routes (apply concat routes)]
-    [(map compile-route (map first all-routes))
-     (map (comp second compile-route) (map second all-routes))]))
-
-(defn process-routes
-  "Given a sequence of (compiled) route patterns, a corresponding sequence of
-  (compiled) mapped routes, an input URL, and the HTTP method used, return the
-  route after matching and processing. This finds the first match in all the
-  patterns and, if there is one, accumulates all the bound variables from the
-  match for substitution. Any unmatched part of the URL is returned untouched,
-  after the matching portion has been substituted."
-  [routes new-routes url method]
-  (let [[_ url] (compile-route url)
-        matching (map (partial matches-route url method) routes)
-        no-matches (count (take-while (partial = ::not-found) matching))
-        matches (first (drop no-matches matching))
-        lookup (reduce (fn [a b]
-                         (if (map? b) (merge a b) a)) {}
-                         matches)
-        url-rest (if (= ::not-found matches) url (drop (count matches) url))]
-    (substitute-route (first (drop no-matches new-routes)) lookup url-rest)))
-
-;; utilities for handling file paths and routes
+;; utilities for handling file paths
 
 (defn ->clj
   "Given a filesystem path, return a Clojure ns/symbol. This just follows the
@@ -442,14 +325,6 @@
       ;; missing controller OK; anything else should bubble up
       nil)))
 
-(defn get-section-item
-  "Given the application configuration and an expanded route, return a pair of the
-  section and item (defaulted as appropriate)."
-  [config route]
-  (if (empty? route)
-    (:home config)
-    [(first route) (or (second route) (:default-item config))]))
-
 (defn pack-request
   "Given a request context and a Ring request, return the request context with certain
   Ring data embedded in it. In particular, we keep request headers separate to any
@@ -486,13 +361,13 @@
     405       (render-html rc 405 "Method Not Allowed")
     rc))
 
-(defn render-section-item-request
+(defn render-request
   "Given the application configuration, the specific section, item, HTTP status,
   the trailing routes pieces, and a (Ring) request, convert that to a FW/1
   request context 'rc' and locate and run the controller, then either redirect,
   render an expression as data, or try to render views and layouts."
   ([config section item req]
-   (render-section-item-request config section item 200 nil req))
+   (render-request config section item 200 nil req))
   ([config section item status route req]
    (let [exceptional? (::handling-exception req)
          rc (-> (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
@@ -514,18 +389,6 @@
               (render-page config rc section item exceptional?)))
           (unpack-response rc)))))
 
-(defn render-request
-  "Given the application configuration and a (Ring) request, convert that to a FW/1
-  request context 'rc' and locate and run the controller, then either redirect,
-  render an expression as data, or try to render views and layouts."
-  [config req]
-  (let [exceptional? (::handling-exception req)
-        ;; disable route processing for error handling
-        [routes new-routes] (if exceptional? [() ()] (:routes config))
-        [status route] (process-routes routes new-routes (:uri req) (:request-method req))
-        [section item] (get-section-item config route)]
-    (render-section-item-request config section item status route req)))
-
 (defn render-options
   "Given the application configuration and a Ring request, return an OPTIONS response."
   [config req]
@@ -540,29 +403,7 @@
                {"Access-Control-Allow-Credentials" (:credentials access-control)}
                {"Access-Control-Max-Age"           (str (:max-age access-control))}]}))
 
-(defn controller
-  "Given the application configuration, return a function that processes a request."
-  [config]
-  (fn configured-controller [req]
-    ;; since favicon.ico is commonly requested but often not present, we special case
-    ;; it and return 404 Not Found rather than look for (and fail to find) that action!
-    (if (= "/favicon.ico" (:uri req))
-      (not-found)
-      (try
-        (if (= :options (:request-method req))
-          (render-options config req)
-          (render-request config req))
-        (catch Exception e
-          (if (::handling-exception req)
-            (do
-              (stacktrace/print-stack-trace e)
-              (html-response 500 (str e)))
-            (configured-controller (-> req
-                                       (assoc ::handling-exception true)
-                                       (assoc :uri (str "/" (first (:error config)) "/" (second (:error config))))
-                                       (assoc-in [:params :exception] e)))))))))
-
-(defn default-middleware
+(defn- default-middleware
   "The default set of Ring middleware we apply in FW/1"
   [config]
   [ring-p/wrap-params
@@ -574,7 +415,7 @@
       (ring-s/wrap-session h)))
    (fn [req] (ring-r/wrap-resource req (stem config "/")))])
 
-(defn merge-middleware
+(defn- merge-middleware
   "Return a function that, given any user-supplied middleware (as a vector),
   will combine that will our default Ring middleware (see above). The user
   supplied middleware vector is prepended before the default middleware by
@@ -598,7 +439,7 @@
    :credentials true
    :max-age     1728000} )
 
-(defn framework-defaults
+(defn- framework-defaults
   "Calculate configuration items based on supplied options or defaults."
   [options]
   (assoc options
@@ -608,8 +449,8 @@
          :home  (if (:home options)
                   (clojure.string/split (:home options) #"\.")
                   [(:default-section options) (:default-item options)])
-         :routes (pre-compile-routes (:routes options))
-         :options-access-control (merge default-options-access-control (:options-access-control options))))
+         :options-access-control (merge default-options-access-control
+                                        (:options-access-control options))))
 
 (def ^:private default-options
   {:after identity
@@ -622,7 +463,7 @@
    :suffix "html" ; views / layouts would be .html
    :version "0.6.0"})
 
-(defn build-config
+(defn- build-config
   "Given a 'public' application configuration, return the fully built
   FW/1 configuration for it."
   [app-config]
@@ -634,47 +475,33 @@
   :section/item keyword and produces a function that handles a (Ring) request."
   [app-config]
   (let [config  (build-config app-config)]
-    (fn configured-fw1 [section-item]
-      (let [section (namespace section-item)
-            item    (name section-item)]
-        (reduce (fn [handler middleware] (middleware handler))
-                (fn [req]
-                  ;; since favicon.ico is commonly requested but often not
-                  ;; present, we special case it and return 404 Not Found
-                  ;; rather than look for (and fail to find) that action!
-                  (if (= "/favicon.ico" (:uri req))
-                    (not-found)
-                    (try
-                      (if (= :options (:request-method req))
-                        (render-options config req)
-                        (render-section-item-request config section item req))
-                      (catch Exception e
-                        (if (::handling-exception req)
-                          (do
-                            (stacktrace/print-stack-trace e)
-                            (html-response 500 (str e)))
-                          (let [section (first  (:error config))
-                                item    (second (:error config))]
-                            ((configured-fw1 (keyword section item))
-                             (-> req
-                                 (assoc ::handling-exception true)
-                                 (assoc :uri (str "/" section "/" item))
-                                 (assoc-in [:params :exception] e)))))))))
-                (:middleware config))))))
-
-(comment "Example of routes"
-         [{"/list" "/user/list"}
-          {"/user/:id" "/user/view/id/:id"}
-          {"/" "/not/found"}])
-
-(defn start
-  "Start the server. Optionally accepts either a map of configuration
-  parameters or inline key / value pairs (for backward compatibility)."
-  ([] (start {}))
-  ([app-config]
-   (let [config (build-config app-config)]
-     (selmer.filters/add-filter! :empty? empty?)
-     (reduce (fn [handler middleware] (middleware handler))
-             (controller config)
-             (:middleware config))))
-  ([k v & more] (start (apply hash-map k v more))))
+    (fn configured-fw1
+      ([] (configured-fw1 (keyword (first  (:home config))
+                                   (second (:home config)))))
+      ([section-item]
+       (let [section (namespace section-item)
+             item    (name section-item)]
+         (reduce (fn [handler middleware] (middleware handler))
+                 (fn [req]
+                   ;; since favicon.ico is commonly requested but often not
+                   ;; present, we special case it and return 404 Not Found
+                   ;; rather than look for (and fail to find) that action!
+                   (if (= "/favicon.ico" (:uri req))
+                     (not-found)
+                     (try
+                       (if (= :options (:request-method req))
+                         (render-options config req)
+                         (render-request config section item req))
+                       (catch Exception e
+                         (if (::handling-exception req)
+                           (do
+                             (stacktrace/print-stack-trace e)
+                             (html-response 500 (str e)))
+                           (let [section (first  (:error config))
+                                 item    (second (:error config))]
+                             ((configured-fw1 (keyword section item))
+                              (-> req
+                                  (assoc ::handling-exception true)
+                                  (assoc :uri (str "/" section "/" item))
+                                  (assoc-in [:params :exception] e)))))))))
+                 (:middleware config)))))))
