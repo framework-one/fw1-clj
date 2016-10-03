@@ -1,5 +1,5 @@
 (def project 'framework-one)
-(def version "0.6.1-SNAPSHOT")
+(def version "0.7.0-SNAPSHOT")
 
 (task-options!
  pom {:project     project
@@ -11,15 +11,19 @@
                     "http://www.eclipse.org/legal/epl-v10.html"}})
 
 (set-env! :resource-paths #{"src"}
-          :dependencies   '[[org.clojure/clojure   "RELEASE"]
-                            [org.clojure/data.xml  "RELEASE"]
-                            [cheshire              "RELEASE"]
-                            [ring                  "RELEASE"]
-                            [selmer                "RELEASE"]
-                            ;; used to demonstrate Component-based FW/1 lifecycle
-                            [com.stuartsierra/component "RELEASE" :scope "test"]
-                            ;; used to demonstrate Compojure routing with FW/1
-                            [compojure "RELEASE" :scope "test"]
+          :dependencies   '[[org.clojure/clojure "1.8.0" :scope "provided"]
+                                        ; render as xml
+                            [org.clojure/data.xml "0.1.0-beta2"]
+                                        ; render as JSON
+                            [cheshire            "5.6.3"]
+                                        ; core web request handling
+                            [ring                "1.6.0-beta6"]
+                                        ; view/layout templates
+                            [selmer              "1.0.9"]
+                                        ; standardized application start/stop
+                            [com.stuartsierra/component "0.3.1"]
+                                        ; standardized routing
+                            [compojure           "1.6.0-beta1"]
                             [seancorfield/boot-expectations "RELEASE" :scope "test"]])
 
 (require '[seancorfield.boot-expectations :refer [expectations]])
