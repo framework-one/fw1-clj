@@ -38,7 +38,7 @@
   (let-routes [fw1 (fw1/configure-router {:application     application
                                           :application-key "usermanager"
                                           :home            "user.default"})]
-    (route/resources "/" {:root "/usermanager"})
+    (route/resources "/")
     (ANY "/" [] (fw1))
     (context "/:section" [section]
              (ANY "/"             []     (fw1 (keyword section "default")))
