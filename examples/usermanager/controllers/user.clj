@@ -36,5 +36,6 @@
 (defn save [rc]
   (swap! changes inc)
   (let [{:keys [id first-name last-name email department-id]} rc]
-    (save-user {:id (to-long id) :first-name first-name :last-name last-name :email email :department-id (to-long department-id)}))
+    (save-user {:id (to-long id) :first-name first-name :last-name last-name
+                :email email :department-id (to-long department-id)}))
   (redirect rc "/user/list"))
