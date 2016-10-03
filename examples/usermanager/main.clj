@@ -37,7 +37,7 @@
   (let-routes [fw1 (fw1/configure-router {:application     application
                                           :application-key "usermanager"
                                           :home            "user.default"})]
-    (GET "/favicon.ico" [] (route/not-found "No favicon.ico"))
+    (route/resources "/" {:root "/usermanager"})
     (ANY "/" [] (fw1))
     (context "/:section" [section]
              (ANY "/"             []     (fw1 (keyword section "default")))
