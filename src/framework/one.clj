@@ -17,18 +17,12 @@
             [clojure.data.xml :as xml]
             [clojure.stacktrace :as stacktrace]
             [clojure.string :as str]
-            [clojure.walk :as walk]
             [com.stuartsierra.component :as component]
             [compojure.coercions :refer :all]
             [compojure.core :refer :all]
             [compojure.route :as route]
             [ring.adapter.jetty :as jetty]
-            [ring.middleware.flash :as ring-f]
-            [ring.middleware.params :as ring-p]
-            [ring.middleware.resource :as ring-r]
-            [ring.middleware.session :as ring-s]
-            [ring.middleware.session.cookie :refer [cookie-store]]
-            [ring.middleware.session.memory :refer [memory-store]]
+            [ring.middleware.defaults :as ring-md]
             [selmer.filters]
             [selmer.parser]
             [selmer.util :refer [resource-path]]))
@@ -59,7 +53,7 @@
 
 ;; FW/1 base functionality - this is essentially the public API of the
 ;; framework with the entry point to create Ring middleware being:
-;; (fw1/start) - returns Ring middleware for your application
+;; (fw1/default-handler) - returns Ring middleware for your application
 ;; See the bottom of this file for more details
 
 (def cookie
@@ -149,7 +143,7 @@
 (def session
   "Get / set items in session scope:
   (session rc name) - returns the named session variable
-  (session rc value) - sets the named session variable
+  (session rc name value) - sets the named session variable
   Session variables persist across requests and use Ring's session
   middleware (and can be memory or cookie-based at the moment)."
   (scope-access :session))
@@ -253,8 +247,8 @@
   desired layout path, attempt to render that layout."
   [config rc exceptional? html layout-path]
   (let [render-layout (fn [] (selmer.parser/render-file layout-path
-                                                       (assoc rc :body [:safe html])
-                                                       (:selmer-tags config)))]
+                                                        (assoc rc :body [:safe html])
+                                                        (:selmer-tags config)))]
     (if exceptional?
       ;; if we fail to render a layout while processing an exception
       ;; just treat the layout as not found so the original view will
@@ -362,7 +356,7 @@
   render views and layouts."
   [config section item req]
   (let [exceptional? (::handling-exception req)
-        rc (-> (walk/keywordize-keys (:params req))
+        rc (-> (:params req)
                (pack-request req)
                (event :action  (str section "." item))
                (event :section section)
@@ -395,34 +389,15 @@
                {"Access-Control-Max-Age"           (str (:max-age access-control))}]}))
 
 (defn- default-middleware
-  "The default set of Ring middleware we apply in FW/1"
-  [config]
-  [ring-p/wrap-params
-   ring-f/wrap-flash
-   (fn [h]
-    (condp = (:session-store config)
-      :memory (ring-s/wrap-session h {:store (memory-store)})
-      :cookie (ring-s/wrap-session h {:store (cookie-store)})
-      (ring-s/wrap-session h)))
-   (fn [req] (ring-r/wrap-resource req (stem config "/")))])
-
-(defn- merge-middleware
-  "Return a function that, given any user-supplied middleware (as a vector),
-  will combine that will our default Ring middleware (see above). The user
-  supplied middleware vector is prepended before the default middleware by
-  default, but can have a placement as its first element:
-  - :append  - append supplied middleware after defaults
-  - :replace - use supplied middleware instead of defaults
-  - :prepend - prepend supplied middleware before defaults"
-  [config]
-  (fn [middleware]
-    (if middleware
-      (condp = (first middleware)
-        :append (concat (default-middleware config) (rest middleware))
-        :replace (rest middleware)
-        :prepend (concat (rest middleware) (default-middleware config))
-        (concat middleware (default-middleware config)))
-      (default-middleware config))))
+  "The default Ring middleware we apply in FW/1. Returns a single
+  composed piece of middleware. We start with Ring's site defaults
+  and the fn passed in may modify those defaults."
+  [modifier-fn]
+  (fn [handler]
+    (ring-md/wrap-defaults handler (-> ring-md/site-defaults
+                                        ; you have to explicitly opt in to this:
+                                       (assoc-in [:security :anti-forgery] false)
+                                       modifier-fn))))
 
 (def ^:private default-options-access-control
   {:origin      "*"
@@ -440,6 +415,9 @@
          :home  (if (:home options)
                   (clojure.string/split (:home options) #"\.")
                   [(:default-section options) (:default-item options)])
+                                        ; can modify site-defaults
+         :middleware (default-middleware (or (:middleware-default-fn options)
+                                             identity))
          :options-access-control (merge default-options-access-control
                                         (:options-access-control options))))
 
@@ -452,46 +430,49 @@
    :reload :reload
    :reload-application-on-every-request false
    :suffix "html" ; views / layouts would be .html
-   :version "0.6.0"})
+   :version "0.7.3"})
 
 (defn- build-config
   "Given a 'public' application configuration, return the fully built
   FW/1 configuration for it."
   [app-config]
-  (let [config (framework-defaults (merge default-options app-config))]
-    (update config :middleware (merge-middleware config))))
+  (framework-defaults (merge default-options app-config)))
+
+(defn- handler
+  "The underlying Ring request handler for FW/1."
+  [config section item req fw1-router]
+  (try
+    (if (= :options (:request-method req))
+      (render-options config req)
+      (render-request config section item req))
+    (catch Exception e
+      (if (::handling-exception req)
+        (do
+          (stacktrace/print-stack-trace e)
+          (html-response 500 (str e)))
+        (let [section (first  (:error config))
+              item    (second (:error config))
+              fw1     (fw1-router (keyword section item))]
+          (fw1 (-> req
+                   (assoc ::handling-exception true)
+                   (assoc :uri (str "/" section "/" item))
+                   (assoc-in [:params :exception] e))))))))
 
 (defn configure-router
-  "Given the application configuration, return a function that takes a
+  "Given the application configuration, return a router function that takes a
   :section/item keyword and produces a function that handles a (Ring) request."
   [app-config]
-  (let [config  (build-config app-config)]
-    (fn configured-fw1
-      ([] (configured-fw1 (keyword (first  (:home config))
-                                   (second (:home config)))))
+  (let [config (build-config app-config)]
+    (fn fw1-router
+      ([] (fw1-router (keyword (first  (:home config))
+                               (second (:home config)))))
       ([section-item] ; :section or :section/item
        (let [[section item] (if (namespace section-item)
                               [(namespace section-item) (name section-item)]
-                              [(name section-item) (second (:home config))])]
-         (reduce (fn [handler middleware] (middleware handler))
-                 (fn [req]
-                   (try
-                     (if (= :options (:request-method req))
-                       (render-options config req)
-                       (render-request config section item req))
-                     (catch Exception e
-                       (if (::handling-exception req)
-                         (do
-                           (stacktrace/print-stack-trace e)
-                           (html-response 500 (str e)))
-                         (let [section (first  (:error config))
-                               item    (second (:error config))]
-                           ((configured-fw1 (keyword section item))
-                            (-> req
-                                (assoc ::handling-exception true)
-                                (assoc :uri (str "/" section "/" item))
-                                (assoc-in [:params :exception] e))))))))
-                 (:middleware config)))))))
+                              [(name section-item) (second (:home config))])
+             middleware-fn  (:middleware config)]
+         (middleware-fn (fn [req]
+                          (handler config section item req fw1-router))))))))
 
 (defn default-handler
   "Build a default FW/1 handler from the application and configuration.

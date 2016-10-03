@@ -108,7 +108,7 @@ Any controller function also has access to the the FW/1 API (after `require`ing 
 
 * `(cookie rc name)` - returns the value of `name` from the cookie scope.
 * `(cookie rc name value)` - sets `name` to `value` in the cookie scope, and returns the updated `rc`.
-* `(event rc name)` - returns the value of `name` from the event scope (`:action`, `:section`, `:item, or `:config`).
+* `(event rc name)` - returns the value of `name` from the event scope (`:action`, `:section`, `:item`, or `:config`).
 * `(event rc name value)` - sets `name` to `value` in the event scope, and returns the updated `rc`.
 * `(flash rc name)` - returns the value of `name` from the flash scope.
 * `(flash rc name value)` - sets `name` to `value` in the flash scope, and returns the updated `rc`.
@@ -153,18 +153,16 @@ as a map (preferred) or as an arbitrary number of inline key / value pairs (lega
 * `:error` - the action - _"section.item"_ - to execute if an exception is thrown from the initial request, defaults to `:default-section` value and `"error"` _[untested]_.
 * `:home` - the _"section.item"_ pair used for the / URL, defaults to `:default-section` and `:default-item` values.
 * `:json-config` - specify formatting information for Cheshire's JSON `generate-string`, used in `render-json` (`:date-format`, `:ex`, `:key-fn`, etc).
-* `:middleware` - specify additional Ring-compatible middleware to use. By default, this is prepended to the default list (params, flash, session, resource). The behavior can be changed by specifying a keyword at the start of the list of additional middleware: `:append`, `:prepend`, `:replace`.
+* `:middleware-default-fn` - an optional function that will be applied to Ring's site defaults; note that by default we do **not** enable the XSRF Anti-Forgery middleware that is normally part of the site defaults since that requires session scope and client knowledge which is not appropriate for many uses of FW/1. Specify `#(assoc-in [:security :anti-forgery] true)` here to opt into XSRF Anti-Forgery (you'll probably also want to change the :session :store from the in-memory default unless you have just a single server instance).
 * `:options-access-control` - specify what an `OPTIONS` request should return (`:origin`, `:headers`, `:credentials`, `:max-age`).
 * `:password` - specify a password for the application reload URL flag, default `"secret"` - see also `:reload`.
 * `:reload` - specify an `rc` key for the application reload URL flag, default `:reload` - see also `:password`.
 * `:reload-application-on-every-request` - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
 * `:routes` - a vector of hash maps, specifying route patterns and what to map them to (full documentation coming in due course).
 * `:selmer-tags` - you can specify a map that is passed to the Selmer parser to override what characters are used to identify tags, filters
-* `:session-store` - specify storage used for Ring session storage. Legal values are `:memory` and `:cookie`. Default is whatever is Ring's default (which is memory storage as of this writing).
 * `:suffix` - the file extension used for views and layouts. Default is `"html"`.
 
-For example: `(fw1/configure-router :default-section "hello" :default-item "world")` will tell FW/1 to use `hello.world` as the default action.
-You could also say: `(fw1/configure-router {:default-section "hello" :default-item "world"})`.
+For example: `(fw1/configure-router {:default-section "hello" :default-item "world"})` will tell FW/1 to use `hello.world` as the default action.
 
 License & Copyright
 ===================

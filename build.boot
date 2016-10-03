@@ -1,5 +1,5 @@
 (def project 'framework-one)
-(def version "0.7.2")
+(def version "0.7.3")
 
 (task-options!
  pom {:project     project
@@ -18,6 +18,7 @@
                             [cheshire            "5.6.3"]
                                         ; core web request handling
                             [ring                "1.6.0-beta6"]
+                            [ring/ring-defaults  "0.2.1"]
                                         ; view/layout templates
                             [selmer              "1.0.9"]
                                         ; standardized application start/stop
