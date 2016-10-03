@@ -486,6 +486,34 @@
     405       (render-html rc 405 "Method Not Allowed")
     rc))
 
+(defn render-section-item-request
+  "Given the application configuration, the specific section, item, HTTP status,
+  the trailing routes pieces, and a (Ring) request, convert that to a FW/1
+  request context 'rc' and locate and run the controller, then either redirect,
+  render an expression as data, or try to render views and layouts."
+  ([config section item req]
+   (render-section-item-request config section item 200 nil req))
+  ([config section item status route req]
+   (let [exceptional? (::handling-exception req)
+         rc (-> (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
+                (pack-request req)
+                (event :action  (str section "." item))
+                (event :section section)
+                (event :item    item)
+                (event :config  config)
+                (adjust-rc-by-status status route))
+         controller-ns (symbol (->clj (str (stem config ".") "controllers." section)))
+         _ (require-controller rc controller-ns)
+         rc (reduce (partial apply-controller config controller-ns)
+                    rc
+                    [:before "before" item "after" :after])]
+     (->> (if-let [redirect (::redirect rc)]
+            redirect
+            (if-let [render-expr (::render rc)]
+              (render-data-response config render-expr)
+              (render-page config rc section item exceptional?)))
+          (unpack-response rc)))))
+
 (defn render-request
   "Given the application configuration and a (Ring) request, convert that to a FW/1
   request context 'rc' and locate and run the controller, then either redirect,
@@ -495,25 +523,8 @@
         ;; disable route processing for error handling
         [routes new-routes] (if exceptional? [() ()] (:routes config))
         [status route] (process-routes routes new-routes (:uri req) (:request-method req))
-        [section item] (get-section-item config route)
-        rc (-> (walk/keywordize-keys (merge (as-map (rest (rest route))) (:params req)))
-               (pack-request req)
-               (event :action  (str section "." item))
-               (event :section section)
-               (event :item    item)
-               (event :config  config)
-               (adjust-rc-by-status status route))
-        controller-ns (symbol (->clj (str (stem config ".") "controllers." section)))
-        _ (require-controller rc controller-ns)
-        rc (reduce (partial apply-controller config controller-ns)
-                   rc
-                   [:before "before" item "after" :after])]
-    (->> (if-let [redirect (::redirect rc)]
-           redirect
-           (if-let [render-expr (::render rc)]
-             (render-data-response config render-expr)
-             (render-page config rc section item exceptional?)))
-         (unpack-response rc))))
+        [section item] (get-section-item config route)]
+    (render-section-item-request config section item status route req)))
 
 (defn render-options
   "Given the application configuration and a Ring request, return an OPTIONS response."
@@ -563,14 +574,6 @@
       (ring-s/wrap-session h)))
    (fn [req] (ring-r/wrap-resource req (stem config "/")))])
 
-(comment "Example of routes"
-(let [[routes new-routes] (pre-compile-routes
-                           [{"/list" "/user/list"}
-                            {"/user/:id" "/user/view/id/:id"}
-                            {"/" "/not/found"}])]
-  (process-routes routes new-routes "/user/42/sort/email" "GET"))
-)
-
 (defn merge-middleware
   "Return a function that, given any user-supplied middleware (as a vector),
   will combine that will our default Ring middleware (see above). The user
@@ -619,15 +622,57 @@
    :suffix "html" ; views / layouts would be .html
    :version "0.6.0"})
 
+(defn build-config
+  "Given a 'public' application configuration, return the fully built
+  FW/1 configuration for it."
+  [app-config]
+  (let [config (framework-defaults (merge default-options app-config))]
+    (update config :middleware (merge-middleware config))))
+
+(defn configure-router
+  "Given the application configuration, return a function that takes a
+  :section/item keyword and produces a function that handles a (Ring) request."
+  [app-config]
+  (let [config  (build-config app-config)]
+    (fn configured-fw1 [section-item]
+      (let [section (namespace section-item)
+            item    (name section-item)]
+        (reduce (fn [handler middleware] (middleware handler))
+                (fn [req]
+                  ;; since favicon.ico is commonly requested but often not
+                  ;; present, we special case it and return 404 Not Found
+                  ;; rather than look for (and fail to find) that action!
+                  (if (= "/favicon.ico" (:uri req))
+                    (not-found)
+                    (try
+                      (if (= :options (:request-method req))
+                        (render-options config req)
+                        (render-section-item-request config section item req))
+                      (catch Exception e
+                        (if (::handling-exception req)
+                          (do
+                            (stacktrace/print-stack-trace e)
+                            (html-response 500 (str e)))
+                          (let [section (first  (:error config))
+                                item    (second (:error config))]
+                            ((configured-fw1 (keyword section item))
+                             (-> req
+                                 (assoc ::handling-exception true)
+                                 (assoc :uri (str "/" section "/" item))
+                                 (assoc-in [:params :exception] e)))))))))
+                (:middleware config))))))
+
+(comment "Example of routes"
+         [{"/list" "/user/list"}
+          {"/user/:id" "/user/view/id/:id"}
+          {"/" "/not/found"}])
+
 (defn start
   "Start the server. Optionally accepts either a map of configuration
   parameters or inline key / value pairs (for backward compatibility)."
   ([] (start {}))
   ([app-config]
-   (let [options (merge default-options app-config)
-         dynamic-options (framework-defaults options)
-         config (update dynamic-options :middleware
-                        (merge-middleware dynamic-options))]
+   (let [config (build-config app-config)]
      (selmer.filters/add-filter! :empty? empty?)
      (reduce (fn [handler middleware] (middleware handler))
              (controller config)

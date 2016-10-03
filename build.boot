@@ -18,6 +18,8 @@
                             [selmer                "RELEASE"]
                             ;; used to demonstrate Component-based FW/1 lifecycle
                             [com.stuartsierra/component "RELEASE" :scope "test"]
+                            ;; used to demonstrate Compojure routing with FW/1
+                            [compojure "RELEASE" :scope "test"]
                             [seancorfield/boot-expectations "RELEASE" :scope "test"]])
 
 (require '[seancorfield.boot-expectations :refer [expectations]])

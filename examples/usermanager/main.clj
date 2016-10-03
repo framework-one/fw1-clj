@@ -2,6 +2,8 @@
   (:require [framework.one :as fw1]
             [usermanager.model.user-manager :as model]
             [com.stuartsierra.component :as component]
+            [compojure.core :refer :all]
+            [compojure.route :as route]
             [ring.adapter.jetty :refer [run-jetty]]))
 
 ;; implement your application's lifecycle here
@@ -20,14 +22,30 @@
   (map->Application {:application-name "usermanager"
                      :config config}))
 
-(defn my-handler
-  "Build the FW/1 handler from an application (component).
+(defn my-router
+  "Build the FW/1 router from an application (component).
   Provide FW/1's configuration here -- which could come
   from the application component or be placed inline."
   [application]
-  (fw1/start {:application     application
-              :application-key (:application-name application)
-              :home            "user.default"}))
+  (fw1/configure-router {:application     application
+                         :application-key (:application-name application)
+                         :home            "user.default"}))
+
+(defn my-handler
+  "Build the FW/1 handler using a FW/1 router and Compojure
+  routes."
+  [application]
+  (let-routes [fw1 (my-router application)]
+    (GET "/" [] (fw1 :user/default))
+    (route/resources "/assets" {:root "/usermanager/assets"})
+    (GET "/favicon.ico" [] (route/not-found "No favicon.ico"))
+    (context "/user" []
+             (GET  "/"              [] (fw1 :user/default))
+             (GET  "/list"          [] (fw1 :user/list))
+             (GET  "/form"          [] (fw1 :user/form))
+             (GET  "/form/id/:id"   [] (fw1 :user/form))
+             (POST "/save"          [] (fw1 :user/save))
+             (GET  "/delete/id/:id" [] (fw1 :user/delete)))))
 
 ;; lifecycle for the Jetty server in which we run
 (defrecord WebServer [port join? http-server application]
