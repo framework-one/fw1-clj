@@ -118,6 +118,13 @@
   ([rc status expr]
    (render-data rc status :json expr)))
 
+(defn render-raw-json
+  "Tell FW/1 to render this string as raw (encoded) JSON."
+  ([rc expr]
+   (render-data rc :raw-json expr))
+  ([rc status expr]
+   (render-data rc status :raw-json expr)))
+
 (defn render-text
   "Tell FW/1 to render this expression (string) as plain text."
   ([rc expr]
@@ -288,17 +295,19 @@
 
 (def ^:private render-types
   "Supported content types and renderers."
-  {:html {:type "text/html; charset=utf-8"
-          :body (fn [config data] data)}
-   :json {:type "application/json; charset=utf-8"
-          :body (fn [config data]
-                  (if-let [json-config (:json-config config)]
-                    (json/generate-string data json-config)
-                    (json/generate-string data)))}
-   :text {:type "text/plain; charset=utf-8"
-          :body (fn [config data] data)}
-   :xml  {:type "text/xml; charset=utf-8"
-          :body (fn [config data] (as-xml data))}})
+  {:html     {:type "text/html; charset=utf-8"
+              :body (fn [config data] data)}
+   :json     {:type "application/json; charset=utf-8"
+              :body (fn [config data]
+                      (if-let [json-config (:json-config config)]
+                        (json/generate-string data json-config)
+                        (json/generate-string data)))}
+   :raw-json {:type "application/json; charset=utf-8"
+              :body (fn [config data] data)}
+   :text     {:type "text/plain; charset=utf-8"
+              :body (fn [config data] data)}
+   :xml      {:type "text/xml; charset=utf-8"
+              :body (fn [config data] (as-xml data))}})
 
 (defn render-data-response
   "Given the format and data, return a success response with the appropriate
