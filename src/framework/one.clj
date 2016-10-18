@@ -84,8 +84,9 @@
 
 (defn redirect
   "Tell FW/1 to perform a redirect."
-  [rc url]
-  (assoc rc ::redirect {:status 302 :headers {"Location" url}}))
+  ([rc url] (redirect rc 302 url))
+  ([rc status url]
+   (assoc rc ::redirect {:status status :headers {"Location" url}})))
 
 (defn reload?
   "Returns true if the current request is a reload request (or
