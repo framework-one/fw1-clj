@@ -114,10 +114,10 @@ Any controller function also has access to the the FW/1 API (after `require`ing 
 * `(flash rc name value)` - sets `name` to `value` in the flash scope, and returns the updated `rc`.
 * `(header rc name)` - return the value of the `name` HTTP header, or `nil` if no such header exists.
 * `(header rc name value)` - sets the `name` HTTP header to `value` for the response, and returns the updated `rc`.
-* `(redirect rc url)` - returns `rc` containing information to indicate a redirect to the specified `url`.
+* `(redirect rc url)` or `(redirect rc status url)` - returns `rc` containing information to indicate a redirect to the specified `url`.
 * `(reload? rc)` - returns `true` if the current request includes URL parameters to force an application reload.
 * `(remote-addr rc)` - returns the IP address of the remote requestor (if available).
-* `(render-xxx rc data)` or `(render-xxx rc status data)` - render the specified `data`, optionally with the specified `status` code, in format _xxx_: `html`, `json`, `text`, `xml`.
+* `(render-xxx rc data)` or `(render-xxx rc status data)` - render the specified `data`, optionally with the specified `status` code, in format _xxx_: `html`, `json`, `raw-json`, `text`, `xml`.
 * `(servlet-request rc)` - returns a "fake" `HttpServletRequest` object that delegates `getParameter` calls to pull data out of `rc`; used for interop with other HTTP-centric libraries.
 * `(session rc name)` - returns the value of `name` from the session scope.
 * `(session rc name value)` - sets `name` to `value` in the session scope, and returns the updated `rc`.

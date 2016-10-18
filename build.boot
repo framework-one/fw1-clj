@@ -1,5 +1,5 @@
 (def project 'framework-one)
-(def version "0.7.3")
+(def version "0.7.4")
 
 (task-options!
  pom {:project     project
