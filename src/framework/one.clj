@@ -75,6 +75,11 @@
   just store items there: (flash rc name value)"
   (scope-access :flash))
 
+(def ring
+  "Get data from the original Ring request -- not really intended for
+  public usage, but may be useful to some applications."
+  (scope-access ::ring))
+
 (defn header
   "Either read the request headers or write the response headers:
   (header rc name) - return the named (request) header
@@ -145,6 +150,14 @@
   "Return a fake HttpServletRequest that knows how to delegate to the rc."
   [rc]
   (proxy [javax.servlet.http.HttpServletRequest] []
+    (getContentType []
+      (let [headers (ring rc :headers)]
+        (get headers "content-type")))
+    (getHeader [name]
+      (let [headers (ring rc :headers)]
+        (get headers (str/lower-case name))))
+    (getMethod []
+      (str/upper-case (name (ring rc :request-method))))
     (getParameter [name]
       (if-let [v (get rc (keyword name))] (str v) nil))))
 
@@ -344,7 +357,7 @@
              (assoc-in m
                        [::request (if (= :headers k) :req-headers k)]
                        (or (k req) {})))
-           rc
+           (assoc-in rc [::request ::ring] req)
            [:session :cookies :remote-addr :headers])
    (:flash req)))
 

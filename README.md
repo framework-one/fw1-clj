@@ -118,7 +118,8 @@ Any controller function also has access to the the FW/1 API (after `require`ing 
 * `(reload? rc)` - returns `true` if the current request includes URL parameters to force an application reload.
 * `(remote-addr rc)` - returns the IP address of the remote requestor (if available).
 * `(render-xxx rc data)` or `(render-xxx rc status data)` - render the specified `data`, optionally with the specified `status` code, in format _xxx_: `html`, `json`, `raw-json`, `text`, `xml`.
-* `(servlet-request rc)` - returns a "fake" `HttpServletRequest` object that delegates `getParameter` calls to pull data out of `rc`; used for interop with other HTTP-centric libraries.
+* `(ring rc name)` - returns the specified element of the original Ring request.
+* `(servlet-request rc)` - returns a "fake" `HttpServletRequest` object that delegates `getParameter` calls to pull data out of `rc`, as well as implementing several other calls (to the Ring request data); used for interop with other HTTP-centric libraries.
 * `(session rc name)` - returns the value of `name` from the session scope.
 * `(session rc name value)` - sets `name` to `value` in the session scope, and returns the updated `rc`.
 * `(to-long val)` - converts `val` to a long, returning zero if it cannot be converted (values in `rc` come in as strings so this is useful when you need a number instead and zero can be a sentinel for "no value").
