@@ -110,16 +110,16 @@ Any controller function also has access to the the FW/1 API (after `require`ing 
 * `(cookie rc name value)` - sets `name` to `value` in the cookie scope, and returns the updated `rc`.
 * `(event rc name)` - returns the value of `name` from the event scope (`:action`, `:section`, `:item`, or `:config`).
 * `(event rc name value)` - sets `name` to `value` in the event scope, and returns the updated `rc`.
-* `(flash rc name)` - returns the value of `name` from the flash scope.
 * `(flash rc name value)` - sets `name` to `value` in the flash scope, and returns the updated `rc`.
 * `(header rc name)` - return the value of the `name` HTTP header, or `nil` if no such header exists.
 * `(header rc name value)` - sets the `name` HTTP header to `value` for the response, and returns the updated `rc`.
+* `(parameters rc)` - returns just the form / URL parameters from the request context (plus whatever parameters have been added by controllers). This is useful when you want to iterate over the data elements without worrying about any of the 'special' data that FW/1 puts in `rc`.
 * `(redirect rc url)` or `(redirect rc status url)` - returns `rc` containing information to indicate a redirect to the specified `url`.
 * `(reload? rc)` - returns `true` if the current request includes URL parameters to force an application reload.
 * `(remote-addr rc)` - returns the IP address of the remote requestor (if available).
 * `(render-xxx rc data)` or `(render-xxx rc status data)` - render the specified `data`, optionally with the specified `status` code, in format _xxx_: `html`, `json`, `raw-json`, `text`, `xml`.
-* `(ring rc name)` - returns the specified element of the original Ring request.
-* `(servlet-request rc)` - returns a "fake" `HttpServletRequest` object that delegates `getParameter` calls to pull data out of `rc`, as well as implementing several other calls (to the Ring request data); used for interop with other HTTP-centric libraries.
+* `(ring rc)` - returns the original Ring request.
+* `(servlet-request rc)` - returns a "fake" `HttpServletRequest` object that delegates `getParameter` calls to pull data out of `rc`, as well as implementing several other calls (delegating to the Ring request data); used for interop with other HTTP-centric libraries.
 * `(session rc name)` - returns the value of `name` from the session scope.
 * `(session rc name value)` - sets `name` to `value` in the session scope, and returns the updated `rc`.
 * `(to-long val)` - converts `val` to a long, returning zero if it cannot be converted (values in `rc` come in as strings so this is useful when you need a number instead and zero can be a sentinel for "no value").

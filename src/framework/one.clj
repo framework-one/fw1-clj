@@ -38,12 +38,6 @@
                (meta #'selmer.filters/add-filter!))
         (deref #'selmer.filters/add-filter!))
 
-;; scope access utility
-(defn scope-access [scope]
-  (fn
-    ([rc n] (get-in rc [::request scope n]))
-    ([rc n v] (assoc-in rc [::request scope n] v))))
-
 ;; render data support
 (defn render-data
   ([rc as expr]
@@ -56,36 +50,42 @@
 ;; (fw1/default-handler) - returns Ring middleware for your application
 ;; See the bottom of this file for more details
 
-(def cookie
+(defn cookie
   "Get / set items in cookie scope:
   (cookie rc name) - returns the named cookie
   (cookie rc name value) - sets the named cookie"
-  (scope-access :cookies))
+  ([rc name] (get-in rc [::ring :cookies name]))
+  ([rc name value] (assoc-in rc [::ring :cookies name] value)))
 
-(def event
+(defn event
   "Get / set FW/1's 'event' scope data. Valid event scope entries are:
-  :action :section :item :config
-  You should normally only read the event data: (event rc key)"
-  (scope-access ::event))
+  :action :section :item :config and :headers (response headers)
+  (event rc name) - returns the named event data
+  (event rc name value) - sets the named event data (internal use only!)"
+  ([rc name] (get-in rc [::event name]))
+  ([rc name value] (assoc-in rc [::event name] value)))
 
-(def flash
+(defn flash
   "Get / set items in 'flash' scope. Data stored in flash scope in
   a request should be automatically restored to the 'rc' on the
-  subsequent request. You should not need to read flash scope,
-  just store items there: (flash rc name value)"
-  (scope-access :flash))
-
-(def ring
-  "Get data from the original Ring request -- not really intended for
-  public usage, but may be useful to some applications."
-  (scope-access ::ring))
+  subsequent request.
+  (flash rc name value)"
+  ([rc name value] (assoc-in rc [::ring :flash name] value)))
 
 (defn header
   "Either read the request headers or write the response headers:
   (header rc name) - return the named (request) header
   (header rc name value) - write the named (response) header"
-  ([rc n] (get-in rc [::request :req-headers n]))
-  ([rc n v] (assoc-in rc [::request :headers n] v)))
+  ([rc n] (get-in rc [::ring :headers n]))
+  ([rc n v] (assoc-in rc [::event :headers n] v)))
+
+(defn parameters
+  "Return just the parameters portion of the request context, without
+  the Ring request and event data special keys. This should be used
+  when you need to iterate over the form/URL scope elements of the
+  request context without needing to worry about special keys."
+  [rc]
+  (dissoc rc ::event ::ring))
 
 (defn redirect
   "Tell FW/1 to perform a redirect."
@@ -108,7 +108,7 @@
   This value comes directly from Ring and is dependent on your
   application server (so it may be IPv4 or IPv6)."
   [rc]
-  (get-in rc [::request :remote-addr]))
+  (get-in rc [::ring :remote-addr]))
 
 (defn render-html
   "Tell FW/1 to render this expression (string) as-is as HTML."
@@ -146,28 +146,33 @@
   ([rc status expr]
    (render-data rc status :xml expr)))
 
+(defn ring
+  "Get data from the original Ring request -- not really intended for
+  public usage, but may be useful to some applications.
+  (ring rc) - returns the whole Ring request"
+  ([rc] (get rc ::ring)))
+
 (defn servlet-request
   "Return a fake HttpServletRequest that knows how to delegate to the rc."
   [rc]
   (proxy [javax.servlet.http.HttpServletRequest] []
     (getContentType []
-      (let [headers (ring rc :headers)]
-        (get headers "content-type")))
+      (get-in (ring rc) [:headers "content-type"]))
     (getHeader [name]
-      (let [headers (ring rc :headers)]
-        (get headers (str/lower-case name))))
+      (get-in (ring rc) [:headers (str/lower-case name)]))
     (getMethod []
-      (str/upper-case (name (ring rc :request-method))))
+      (-> (ring rc) :request-method name str/upper-case))
     (getParameter [name]
       (if-let [v (get rc (keyword name))] (str v) nil))))
 
-(def session
+(defn session
   "Get / set items in session scope:
   (session rc name) - returns the named session variable
   (session rc name value) - sets the named session variable
   Session variables persist across requests and use Ring's session
   middleware (and can be memory or cookie-based at the moment)."
-  (scope-access :session))
+  ([rc name] (get-in rc [::ring :session name]))
+  ([rc name value] (assoc-in rc [::ring :session name] value)))
 
 (defn to-long
   "Given a string, convert it to a long (or zero if it is not
@@ -348,29 +353,16 @@
       nil)))
 
 (defn pack-request
-  "Given a request context and a Ring request, return the request context with certain
-  Ring data embedded in it. In particular, we keep request headers separate to any
-  response headers (and merge those in unpack-response below)."
+  "Given a request context and a Ring request, return the request context with
+  the Ring data embedded in it, and the 'flash' scope merged."
   [rc req]
-  (merge
-   (reduce (fn [m k]
-             (assoc-in m
-                       [::request (if (= :headers k) :req-headers k)]
-                       (or (k req) {})))
-           (assoc-in rc [::request ::ring] req)
-           [:session :cookies :remote-addr :headers])
-   (:flash req)))
+  (merge (assoc rc ::ring req) (:flash req)))
 
 (defn unpack-response
-  "Given a request context and a response, return the response with Ring data added.
-  By this point the response always has headers so we must add to those, not overwrite."
+  "Given a request context (returned by controllers) and a response map (status,
+  headers, body), return a full Ring response map."
   [rc resp]
-  (reduce (fn [m k]
-            (if (= :headers k)
-              (update m k merge (get-in rc [::request k]))
-              (assoc m k (get-in rc [::request k]))))
-          resp
-          [:session :cookies :flash :headers]))
+  (merge (ring rc) (update resp :headers merge (event rc :headers))))
 
 (defn render-request
   "Given the application configuration, the specific section, item, and a (Ring)
@@ -453,7 +445,7 @@
    :reload :reload
    :reload-application-on-every-request false
    :suffix "html" ; views / layouts would be .html
-   :version "0.7.3"})
+   :version "0.8.0"})
 
 (defn- build-config
   "Given a 'public' application configuration, return the fully built

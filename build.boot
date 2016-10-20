@@ -1,5 +1,5 @@
 (def project 'framework-one)
-(def version "0.7.5")
+(def version "0.8.0")
 
 (task-options!
  pom {:project     project
@@ -11,7 +11,8 @@
                     "http://www.eclipse.org/legal/epl-v10.html"}})
 
 (set-env! :resource-paths #{"src"}
-          :dependencies   '[[org.clojure/clojure "1.8.0" :scope "provided"]
+          :source-paths   #{"test"}
+          :dependencies   '[[org.clojure/clojure "RELEASE" :scope "provided"]
                                         ; render as xml
                             [org.clojure/data.xml "0.1.0-beta2"]
                                         ; render as JSON
@@ -26,9 +27,10 @@
                                         ; standardized routing
                             [compojure           "1.6.0-beta1"]
                             [http-kit            "2.2.0" :scope "test"]
-                            [seancorfield/boot-expectations "RELEASE" :scope "test"]])
+                            [seancorfield/boot-expectations "RELEASE" :scope "test"]
+                            [org.clojure/test.check "RELEASE" :scope "test"]])
 
-(require '[seancorfield.boot-expectations :refer [expectations]])
+(require '[seancorfield.boot-expectations :refer [expectations expecting]])
 
 (deftask build []
   (comp (pom) (jar) (install)))
@@ -50,14 +52,3 @@
           (require '[usermanager.main :as app])
           ((resolve 'app/-main) port server)
           identity)))
-
-(deftask with-test []
-  (merge-env! :source-paths #{"test"}
-              :dependencies '[[expectations "RELEASE"]])
-  identity)
-
-(ns-unmap *ns* 'test)
-
-(deftask test []
-  (comp (with-test)
-        (expectations :verbose true)))
