@@ -404,12 +404,12 @@
         methods        "OPTIONS,GET,POST,PUT,PATCH,DELETE"] ; should be dynamic, also include HEAD?
     {:status  200
      :body    ""
-     :headers [{"Content-Type"                     "text/plain; charset=utf-8"}
-               {"Access-Control-Allow-Origin"      (:origin access-control)}
-               {"Access-Control-Allow-Methods"     methods}
-               {"Access-Control-Allow-Headers"     (:headers access-control)}
-               {"Access-Control-Allow-Credentials" (:credentials access-control)}
-               {"Access-Control-Max-Age"           (str (:max-age access-control))}]}))
+     :headers {"Content-Type"                     "text/plain; charset=utf-8"
+               "Access-Control-Allow-Origin"      (:origin access-control)
+               "Access-Control-Allow-Methods"     methods
+               "Access-Control-Allow-Headers"     (:headers access-control)
+               "Access-Control-Allow-Credentials" (:credentials access-control)
+               "Access-Control-Max-Age"           (str (:max-age access-control))}}))
 
 (defn- default-middleware
   "The default Ring middleware we apply in FW/1. Returns a single

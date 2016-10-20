@@ -23,12 +23,12 @@
 (defn- header-name?
   [name]
   (fn [header]
-    (str/starts-with? (ffirst header) name)))
+    (str/starts-with? (first header) name)))
 
 (expect (more-of {:keys [status headers body]}
-                 200 status
-                 ""  body
-                 6   (count headers)
-                 5   (count (filter (header-name? "Access-Control") headers))
-                 4   (count (filter (header-name? "Access-Control-Allow") headers)))
+                 200            status
+                 ""             body
+                 (partial <= 6) (count headers)
+                 5              (count (filter (header-name? "Access-Control") headers))
+                 4              (count (filter (header-name? "Access-Control-Allow") headers)))
         (((fw1/configure-router {})) {:uri "/" :request-method :options}))
