@@ -106,6 +106,7 @@ Framework API
 
 Any controller function also has access to the the FW/1 API (after `require`ing `framework.one`):
 
+* `(abort rc)` - abort the controller lifecycle -- do not apply any more controllers (of the :before "before" item "after" :after lifecycle).
 * `(cookie rc name)` - returns the value of `name` from the cookie scope.
 * `(cookie rc name value)` - sets `name` to `value` in the cookie scope, and returns the updated `rc`.
 * `(event rc name)` - returns the value of `name` from the event scope (`:action`, `:section`, `:item`, or `:config`).

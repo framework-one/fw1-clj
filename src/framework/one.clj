@@ -50,6 +50,11 @@
 ;; (fw1/default-handler) - returns Ring middleware for your application
 ;; See the bottom of this file for more details
 
+(defn abort
+  "Abort the controller lifecycle."
+  [rc]
+  (assoc rc ::abort true))
+
 (defn cookie
   "Get / set items in cookie scope:
   (cookie rc name) - returns the named cookie
@@ -85,7 +90,7 @@
   when you need to iterate over the form/URL scope elements of the
   request context without needing to worry about special keys."
   [rc]
-  (dissoc rc ::event ::ring))
+  (dissoc rc ::abort ::event ::redirect ::render ::ring))
 
 (defn redirect
   "Tell FW/1 to perform a redirect."
@@ -236,8 +241,7 @@
   If the request context indicates that a redirect or a data render is desired, do not
   apply any further controller functions."
   [config controller-ns rc item]
-  (if (or (::redirect rc)
-          (::render rc))
+  (if (::abort rc)
     rc
     (if (keyword? item)
       (if-let [f (item config)] (f rc) rc)
@@ -445,7 +449,7 @@
    :reload :reload
    :reload-application-on-every-request false
    :suffix "html" ; views / layouts would be .html
-   :version "0.8.0"})
+   :version "0.8.1"})
 
 (defn- build-config
   "Given a 'public' application configuration, return the fully built
