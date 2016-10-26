@@ -21,7 +21,6 @@
             [compojure.coercions :refer :all]
             [compojure.core :refer :all]
             [compojure.route :as route]
-            [ring.adapter.jetty :as jetty]
             [ring.middleware.defaults :as ring-md]
             [selmer.filters]
             [selmer.parser]
@@ -516,10 +515,12 @@
     (if (:http-server this)
       this
       (let [start-server (case (:server this)
-                           :jetty    jetty/run-jetty
+                           :jetty    (do
+                                       (require '[ring.adapter.jetty :as jetty])
+                                       (resolve 'jetty/run-jetty))
                            :http-kit (do
                                        (require '[org.httpkit.server :as kit])
-                                       (resolve (symbol "kit/run-server")))
+                                       (resolve 'kit/run-server))
                            (throw (ex-info "Unsupported web server"
                                            {:server (:server this)})))]
         (assoc this
