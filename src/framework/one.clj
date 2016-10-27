@@ -448,7 +448,7 @@
    :reload :reload
    :reload-application-on-every-request false
    :suffix "html" ; views / layouts would be .html
-   :version "0.8.1"})
+   :version "0.8.3"})
 
 (defn- build-config
   "Given a 'public' application configuration, return the fully built
@@ -506,6 +506,60 @@
              (ANY "/:item/:id{[0-9]+}" [item id :<< as-int]
                   (fw1 (keyword section item))))))
 
+;; As of 2016/10/27, these are the two sets of options for the web servers that
+;; we support -- note that only :port is common between the two of them.
+;; We probably ought to open up more of the server's options to the caller,
+;; perhaps replacing port with a full blown options map. At the very least we
+;; probably should support :ip / :host and maybe threads.
+
+(comment
+  "http-kit options:
+
+    :ip                 ; Which ip (if has many ips) to bind
+    :port               ; Which port listen incomming request
+    :thread             ; Http worker thread count
+    :queue-size         ; Max job queued before reject to project self
+    :max-body           ; Max http body: 8m
+    :max-ws             ; Max websocket message size
+    :max-line           ; Max http inital line length
+    :proxy-protocol     ; Proxy protocol e/o #{:disable :enable :optional}
+    :worker-name-prefix ; Woker thread name prefix
+    :worker-pool        ; ExecutorService to use for request-handling (:thread,
+                          :worker-name-prefix, :queue-size are ignored if set)
+")
+
+(comment
+  "Jetty options:
+
+  :configurator         - a function called with the Jetty Server instance
+  :async?               - if true, treat the handler as asynchronous
+  :port                 - the port to listen on (defaults to 80)
+  :host                 - the hostname to listen on
+  :join?                - blocks the thread until server ends (defaults to true)
+  :daemon?              - use daemon threads (defaults to false)
+  :http?                - listen on :port for HTTP traffic (defaults to true)
+  :ssl?                 - allow connections over HTTPS
+  :ssl-port             - the SSL port to listen on (defaults to 443, implies
+                          :ssl? is true)
+  :exclude-ciphers      - When :ssl? is true, exclude these cipher suites
+  :exclude-protocols    - When :ssl? is true, exclude these protocols
+  :keystore             - the keystore to use for SSL connections
+  :key-password         - the password to the keystore
+  :truststore           - a truststore to use for SSL connections
+  :trust-password       - the password to the truststore
+  :max-threads          - the maximum number of threads to use (default 50)
+  :min-threads          - the minimum number of threads to use (default 8)
+  :max-idle-time        - the maximum idle time in milliseconds for a connection
+                          (default 200000)
+  :client-auth          - SSL client certificate authenticate, may be set to
+                          :need,:want or :none (defaults to :none)
+  :send-date-header?    - add a date header to the response (default true)
+  :output-buffer-size   - the response body buffer size (default 32768)
+  :request-header-size  - the maximum size of a request header (default 8192)
+  :response-header-size - the maximum size of a response header (default 8192)
+  :send-server-version? - add Server header to HTTP response (default true)
+")
+
 ;; lifecycle for the specified web server in which we run
 (defrecord WebServer [handler-fn server port ; parameters
                       application            ; dependencies
@@ -525,7 +579,9 @@
                                            {:server (:server this)})))]
         (assoc this
                :http-server (start-server ((:handler-fn this) application)
-                                          {:port (:port this)})
+                                          (cond-> {:port (:port this)}
+                                            (= :jetty (:server this))
+                                            (assoc :join? false)))
                :shutdown (promise)))))
   (stop  [this]
     (if (:http-server this)
