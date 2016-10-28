@@ -109,10 +109,15 @@
 
 (defn remote-addr
   "Return the remote IP address for this request.
-  This value comes directly from Ring and is dependent on your
-  application server (so it may be IPv4 or IPv6)."
+  We attempt to deal with common load balancers that provide the
+  x-forwarded-for header and read that first, else fall back to
+  the value that Ring got from the application server.
+  Note that the result may be an IPv4 or IPv6 value (and may, in
+  fact, contain additional characters -- you'll need to clean it
+  yourself)."
   [rc]
-  (get-in rc [::ring :remote-addr]))
+  (or (get-in rc [::ring :headers "x-forwarded-for"])
+      (get-in rc [::ring :remote-addr])))
 
 (defn render-html
   "Tell FW/1 to render this expression (string) as-is as HTML."
