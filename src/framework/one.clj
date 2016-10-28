@@ -52,7 +52,7 @@
 (defn abort
   "Abort the controller lifecycle."
   [rc]
-  (assoc rc ::abort true))
+  (assoc rc ::abort ::controller))
 
 (defn cookie
   "Get / set items in cookie scope:
