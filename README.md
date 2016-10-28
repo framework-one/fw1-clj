@@ -120,6 +120,7 @@ Any controller function also has access to the the FW/1 API (after `require`ing 
 * `(remote-addr rc)` - returns the IP address of the remote requestor (if available). Checks the `"x-forwarded-for"` header (set by load balancers) then Ring's `:remote-addr` field.
 * `(render-xxx rc data)` or `(render-xxx rc status data)` - render the specified `data`, optionally with the specified `status` code, in format _xxx_: `html`, `json`, `raw-json`, `text`, `xml`.
 * `(ring rc)` - returns the original Ring request.
+* `(ring rc req)` - sets the Ring request data. Intended to be used mostly for testing controllers, to make it easier to set up test `rc` data.
 * `(servlet-request rc)` - returns a "fake" `HttpServletRequest` object that delegates `getParameter` calls to pull data out of `rc`, as well as implementing several other calls (delegating to the Ring request data); used for interop with other HTTP-centric libraries.
 * `(session rc name)` - returns the value of `name` from the session scope.
 * `(session rc name value)` - sets `name` to `value` in the session scope, and returns the updated `rc`.

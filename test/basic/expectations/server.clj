@@ -6,12 +6,12 @@
             [clojure.string :as str]))
 
 (expect "123.45.67.0"
-        (fw1/remote-addr {:framework.one/ring {:headers {"x-forwarded-for" "123.45.67.0"}
-                                               :remote-addr "1.23.45.67"}}))
+        (fw1/remote-addr (fw1/ring {} {:headers {"x-forwarded-for" "123.45.67.0"}
+                                       :remote-addr "1.23.45.67"})))
 
 (expect "1.23.45.67"
-        (fw1/remote-addr {:framework.one/ring {:headers {}
-                                               :remote-addr "1.23.45.67"}}))
+        (fw1/remote-addr (fw1/ring {} {:headers {}
+                                       :remote-addr "1.23.45.67"})))
 
 (expect (more-of {:keys [status body]}
                  200         status

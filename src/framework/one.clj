@@ -158,8 +158,10 @@
 (defn ring
   "Get data from the original Ring request -- not really intended for
   public usage, but may be useful to some applications.
-  (ring rc) - returns the whole Ring request"
-  ([rc] (get rc ::ring)))
+  (ring rc) - returns the whole Ring request
+  (ring rc req) - set the Ring request data (useful for building test data)"
+  ([rc] (get rc ::ring))
+  ([rc req] (assoc rc ::ring req)))
 
 (defn servlet-request
   "Return a fake HttpServletRequest that knows how to delegate to the rc."
@@ -364,7 +366,7 @@
   "Given a request context and a Ring request, return the request context with
   the Ring data embedded in it, and the 'flash' scope merged."
   [rc req]
-  (merge (assoc rc ::ring req) (:flash req)))
+  (merge (ring rc req) (:flash req)))
 
 (defn unpack-response
   "Given a request context (returned by controllers) and a response map (status,
