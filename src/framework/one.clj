@@ -15,6 +15,7 @@
 (ns framework.one
   (:require [cheshire.core :as json]
             [clojure.data.xml :as xml]
+            [clojure.java.io :as io]
             [clojure.stacktrace :as stacktrace]
             [clojure.string :as str]
             [com.stuartsierra.component :as component]
@@ -454,14 +455,16 @@
    :password "secret"
    :reload :reload
    :reload-application-on-every-request false
-   :suffix "html" ; views / layouts would be .html
-   :version "0.8.3"})
+   :suffix "html"})
 
 (defn- build-config
   "Given a 'public' application configuration, return the fully built
   FW/1 configuration for it."
   [app-config]
-  (framework-defaults (merge default-options app-config)))
+  (let [version (str/replace (slurp (io/resource "fw1.version")) "\n" "")]
+    (framework-defaults (merge default-options
+                               {:version version}
+                               app-config))))
 
 (defn- handler
   "The underlying Ring request handler for FW/1."

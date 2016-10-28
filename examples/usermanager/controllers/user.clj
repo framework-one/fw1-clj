@@ -13,7 +13,7 @@
 (defn default [rc]
   (assoc rc
          :message        (str "Welcome to the Framework One User Manager application demo! "
-                              (pr-str (-> (event rc :config) :application)))
+                              "You are running FW/1 version " (:version (event rc :config)) ".")
          :reload-message (when (reload? rc)
                            "The framework cache (and application scope) have been reset.")))
 

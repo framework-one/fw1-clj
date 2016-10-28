@@ -1,16 +1,4 @@
-(def project 'framework-one)
-(def version "0.8.3")
-
-(task-options!
- pom {:project     project
-      :version     version
-      :description "A lightweight, convention-based MVC web framework."
-      :url         "https://github.com/framework-one/fw1-clj/"
-      :scm         {:url "https://github.com/framework-one/fw1-clj/"}
-      :license     {"Eclipse Public License"
-                    "http://www.eclipse.org/legal/epl-v10.html"}})
-
-(set-env! :resource-paths #{"src"}
+(set-env! :resource-paths #{"src" "resources"}
           :source-paths   #{"test"}
           :dependencies   '[[org.clojure/clojure "RELEASE" :scope "provided"]
                                         ; render as xml
@@ -29,6 +17,21 @@
                             [http-kit            "2.2.0" :scope "test"]
                             [seancorfield/boot-expectations "RELEASE" :scope "test"]
                             [org.clojure/test.check "RELEASE" :scope "test"]])
+
+(require '[clojure.java.io :as io]
+         '[clojure.string :as str])
+
+(def project 'framework-one)
+(def version (str/replace (slurp (io/resource "fw1.version")) "\n" ""))
+
+(task-options!
+ pom {:project     project
+      :version     version
+      :description "A lightweight, convention-based MVC web framework."
+      :url         "https://github.com/framework-one/fw1-clj/"
+      :scm         {:url "https://github.com/framework-one/fw1-clj/"}
+      :license     {"Eclipse Public License"
+                    "http://www.eclipse.org/legal/epl-v10.html"}})
 
 (require '[seancorfield.boot-expectations :refer [expectations expecting]])
 
