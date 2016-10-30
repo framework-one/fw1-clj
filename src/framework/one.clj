@@ -98,6 +98,11 @@
   ([rc status url]
    (assoc rc ::redirect {:status status :headers {"Location" url}})))
 
+(defn redirecting?
+  "Return true if a redirect is in progress."
+  [rc]
+  (contains? rc ::redirect))
+
 (defn reload?
   "Returns true if the current request is a reload request (or
   the application is configured to reload on every request)."
@@ -155,6 +160,11 @@
    (render-data rc :xml expr))
   ([rc status expr]
    (render-data rc status :xml expr)))
+
+(defn rendering?
+  "Return true if a render is in progress."
+  [rc]
+  (contains? rc ::render))
 
 (defn ring
   "Get data from the original Ring request -- not really intended for
