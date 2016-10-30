@@ -38,13 +38,6 @@
                (meta #'selmer.filters/add-filter!))
         (deref #'selmer.filters/add-filter!))
 
-;; render data support
-(defn render-data
-  ([rc as expr]
-   (assoc rc ::render {:as as :data expr}))
-  ([rc status as expr]
-   (assoc rc ::render {:status status :as as :data expr})))
-
 ;; FW/1 base functionality - this is essentially the public API of the
 ;; framework with the entry point to create Ring middleware being:
 ;; (fw1/default-handler) - returns Ring middleware for your application
@@ -124,6 +117,15 @@
   [rc]
   (or (get-in rc [::ring :headers "x-forwarded-for"])
       (get-in rc [::ring :remote-addr])))
+
+(defn render-data
+  "Tell FW/1 to render this expression as the given type.
+  Prefer the convenience functions below, unless you are rendering
+  custom data types."
+  ([rc as expr]
+   (assoc rc ::render {:as as :data expr}))
+  ([rc status as expr]
+   (assoc rc ::render {:status status :as as :data expr})))
 
 (defn render-html
   "Tell FW/1 to render this expression (string) as-is as HTML."
@@ -354,7 +356,7 @@
   content type and the data rendered as the body."
   [config {:keys [status as data]
            :or   {status 200}}]
-  (let [renderer (render-types as)]
+  (let [renderer ((merge render-types (:render-types config)) as)]
     {:status  status
      :headers {"Content-Type" (:type renderer)}
      :body    ((:body renderer) config data)}))

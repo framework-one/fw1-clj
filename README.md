@@ -119,6 +119,7 @@ Any controller function also has access to the the FW/1 API (after `require`ing 
 * `(redirecting? rc)` - returns `true` if the current request will redirect, i.e., `(redirect rc ...)` has been called.
 * `(reload? rc)` - returns `true` if the current request includes URL parameters to force an application reload.
 * `(remote-addr rc)` - returns the IP address of the remote requestor (if available). Checks the `"x-forwarded-for"` header (set by load balancers) then Ring's `:remote-addr` field.
+* `(render-data rc type data)` or `(render rc status type data)` - low-level function to tell FW/1 to render the specified `data` as the specified `type`, optionally with the specified `status` code. Prefer the `render-xxx` convenience functions that follow is you are rendering standard data types.
 * `(render-xxx rc data)` or `(render-xxx rc status data)` - render the specified `data`, optionally with the specified `status` code, in format _xxx_: `html`, `json`, `raw-json`, `text`, `xml`.
 * `(rendering? rc)` - returns `true` if the current request will render data (instead of a page), i.e., `(render-xxx rc ...)` has been called.
 * `(ring rc)` - returns the original Ring request.
@@ -163,6 +164,7 @@ as a map (preferred) or as an arbitrary number of inline key / value pairs (lega
 * `:password` - specify a password for the application reload URL flag, default `"secret"` - see also `:reload`.
 * `:reload` - specify an `rc` key for the application reload URL flag, default `:reload` - see also `:password`.
 * `:reload-application-on-every-request` - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
+* `:render-types` - an optional map of data types to replace or augment the built-in data rendering. For each data type (keyword), the value is a map of `:type` (the `Content-Type` to return) and `:body` processing function. Each function takes two arguments: the FW/1 configuration and the data to render. By default, the `:html`, `:raw-json`, and `:text` data types have a `:body` function that just returns the `data` argument as-is.
 * `:routes` - a vector of hash maps, specifying route patterns and what to map them to (full documentation coming in due course).
 * `:selmer-tags` - you can specify a map that is passed to the Selmer parser to override what characters are used to identify tags, filters
 * `:suffix` - the file extension used for views and layouts. Default is `"html"`.
