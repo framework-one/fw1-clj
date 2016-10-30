@@ -116,9 +116,11 @@ Any controller function also has access to the the FW/1 API (after `require`ing 
 * `(header rc name value)` - sets the `name` HTTP header to `value` for the response, and returns the updated `rc`.
 * `(parameters rc)` - returns just the form / URL parameters from the request context (plus whatever parameters have been added by controllers). This is useful when you want to iterate over the data elements without worrying about any of the 'special' data that FW/1 puts in `rc`.
 * `(redirect rc url)` or `(redirect rc status url)` - returns `rc` containing information to indicate a redirect to the specified `url`.
+* `(redirecting? rc)` - returns `true` if the current request will redirect, i.e., `(redirect rc ...)` has been called.
 * `(reload? rc)` - returns `true` if the current request includes URL parameters to force an application reload.
 * `(remote-addr rc)` - returns the IP address of the remote requestor (if available). Checks the `"x-forwarded-for"` header (set by load balancers) then Ring's `:remote-addr` field.
 * `(render-xxx rc data)` or `(render-xxx rc status data)` - render the specified `data`, optionally with the specified `status` code, in format _xxx_: `html`, `json`, `raw-json`, `text`, `xml`.
+* `(rendering? rc)` - returns `true` if the current request will render data (instead of a page), i.e., `(render-xxx rc ...)` has been called.
 * `(ring rc)` - returns the original Ring request.
 * `(ring rc req)` - sets the Ring request data. Intended to be used mostly for testing controllers, to make it easier to set up test `rc` data.
 * `(servlet-request rc)` - returns a "fake" `HttpServletRequest` object that delegates `getParameter` calls to pull data out of `rc`, as well as implementing several other calls (delegating to the Ring request data); used for interop with other HTTP-centric libraries.
