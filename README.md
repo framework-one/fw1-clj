@@ -67,9 +67,14 @@ Project Structure
 
 The standard file structure for a FW/1 application is:
 
-* `controllers/` - contains a `.clj` file for each _section_ that needs business logic.
-* `layouts/` - contains per-_item_, per-_section_ and per-site layouts as needed.
-* `views/` - contains a folder for each _section_, containing an HTML view for each _item_.
+* `resources/`
+  * `public/` - folder containing web-accessible (public) assets
+* `src/`
+  * `app_key/` - matches the `:application-key` value specified in the configuration above.
+    * `controllers/` - contains a `.clj` file for each _section_ that needs business logic.
+    * `layouts/` - contains per-_item_, per-_section_ and per-site layouts as needed.
+    * `views/` - contains a folder for each _section_, containing an HTML view for each _item_.
+    * `main.clj` - the entry point for your application.
 
 Your Model can be anywhere since it will be `require`d into your controller namespaces as needed.
 
@@ -84,9 +89,9 @@ A URL of `/section/item` will cause FW/1 to call:
 * `(controllers.section/item rc)`, if defined.
 * `(controllers.section/after rc)`, if defined.
 
-A handler function should return the `rc`, updated as necessary. Strictly speaking, FW/1 will also call any `:before` / `:after` handlers defined in the configuration -- see below.
+A handler function should return the `rc`, updated as necessary. Strictly speaking, FW/1 will also call any `:before` / `:after` handlers defined in the configuration -- see below. This sequence of controller calls will be interrupted if `(abort rc)` has been called.
 
-Then FW/1 will look for an HTML view template:
+If one of the `render-xxx` functions has been called, FW/1 will render the data as specified. If the `redirect` function has been called, FW/1 will respond with a redirect (a `Location` header containing a URL). Otherwise FW/1 will look for an HTML view template:
 
 * `views/section/item.html`
 
@@ -100,6 +105,39 @@ FW/1 looks for a cascade of layouts (again, the suffix configurable):
  * Replacing `{{body}}` with the view so far.
 * `layouts/default.html`,
  * Replacing `{{body}}` with the view so far. The `:layout` configuration is ignored.
+
+Rendering Data
+--------------
+
+If a `render-xxx` function is called, FW/1 will return a response that has the given status code (or 200 if none were specified) and the set a `Content-Type` header based on the data type specified for the rendering. The body will be the expression, converted per the data type.
+
+The following content types are built-in:
+
+* `:html` - `text/html; charset=utf-8`
+* `:json` - `application/json; charset=utf-8`
+* `:raw-json` - `application/json; charset=utf-8`
+* `:text` - `text/plain; charset=utf-8`
+* `:xml` - `text/xml; charset=utf-8`
+
+By default, `:html`, `:raw-json`, and `:text` render the data as-is. `:json` uses Cheshire's `generate-string` to render the data as a JSON-encoded string, using the `:json-config` settings from the FW/1 configuration if specified. `:xml` uses `clojure.data.xml`'s `sexp-as-element` and then `emit` to render the data as an XML-encoded string.
+
+You can override these in the FW/1 config, via the `:render-types` key. You can also add new data types that way. Each data type is specified by a keyword (as above) and a map with two keys:
+
+* `:type` - the content type string to use (as shown above).
+* `:body` - a function that accepts two arguments - the FW/1 configuration and the data to render - and returns a string that represents the converted value of the data.
+
+Convenience functions are provided for the five built-in data types: `render-html`, `render-json`, `render-raw-json`, `render-text`, and `render-xml`. The `render-data` function can be used for custom data types. In particular, `render-data` can be used to specify runtime data rendering:
+
+    (fw1/render-data rc render-fn expr)
+    (fw1/render-data rc status render-fn expr)
+
+The `render-fn` should be a function of two arities. When called with no arguments, it should either return a content type string for the rendering, or one of the known data types (including custom ones from the `:render-types` configuration) and that data type's content type string will be used. When called with two arguments - the FW/1 configuration and the data to render - it should return a string that represents the converted value of the data.
+
+As a convenience, you can use the `render-by` function to turn your `render-fn` into a function that behaves like the built-in `render-xxx` data type renderers:
+
+    (def render-custom (fw1/render-by my-render-fn))
+    ...
+    (render-custom rc expr)
 
 Framework API
 -------------
@@ -119,6 +157,7 @@ Any controller function also has access to the the FW/1 API (after `require`ing 
 * `(redirecting? rc)` - returns `true` if the current request will redirect, i.e., `(redirect rc ...)` has been called.
 * `(reload? rc)` - returns `true` if the current request includes URL parameters to force an application reload.
 * `(remote-addr rc)` - returns the IP address of the remote requestor (if available). Checks the `"x-forwarded-for"` header (set by load balancers) then Ring's `:remote-addr` field.
+* `(render-by render-fn)` - a convenience to produce a `render-xxx` function. See the last section of **Rendering Data** above for details.
 * `(render-data rc type data)` or `(render rc status type data)` - low-level function to tell FW/1 to render the specified `data` as the specified `type`, optionally with the specified `status` code. Prefer the `render-xxx` convenience functions that follow is you are rendering standard data types.
 * `(render-xxx rc data)` or `(render-xxx rc status data)` - render the specified `data`, optionally with the specified `status` code, in format _xxx_: `html`, `json`, `raw-json`, `text`, `xml`.
 * `(rendering? rc)` - returns `true` if the current request will render data (instead of a page), i.e., `(render-xxx rc ...)` has been called.
@@ -164,7 +203,7 @@ as a map (preferred) or as an arbitrary number of inline key / value pairs (lega
 * `:password` - specify a password for the application reload URL flag, default `"secret"` - see also `:reload`.
 * `:reload` - specify an `rc` key for the application reload URL flag, default `:reload` - see also `:password`.
 * `:reload-application-on-every-request` - boolean, whether to reload controller, view and layout components on every request (intended for development of applications).
-* `:render-types` - an optional map of data types to replace or augment the built-in data rendering. For each data type (keyword), the value is a map of `:type` (the `Content-Type` to return) and `:body` processing function. Each function takes two arguments: the FW/1 configuration and the data to render. By default, the `:html`, `:raw-json`, and `:text` data types have a `:body` function that just returns the `data` argument as-is.
+* `:render-types` - an optional map of data types to replace or augment the built-in data rendering. See **Rendering Data** above for more details.
 * `:routes` - a vector of hash maps, specifying route patterns and what to map them to (full documentation coming in due course).
 * `:selmer-tags` - you can specify a map that is passed to the Selmer parser to override what characters are used to identify tags, filters
 * `:suffix` - the file extension used for views and layouts. Default is `"html"`.
