@@ -444,7 +444,7 @@
                "Access-Control-Allow-Origin"      (:origin access-control)
                "Access-Control-Allow-Methods"     methods
                "Access-Control-Allow-Headers"     (:headers access-control)
-               "Access-Control-Allow-Credentials" (:credentials access-control)
+               "Access-Control-Allow-Credentials" (str (:credentials access-control))
                "Access-Control-Max-Age"           (str (:max-age access-control))}}))
 
 (defn- default-middleware
