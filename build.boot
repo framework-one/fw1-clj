@@ -8,6 +8,7 @@
                                         ; core web request handling
                             [ring                "1.6.0-beta6"]
                             [ring/ring-defaults  "0.2.1"]
+                            [ring/ring-json      "0.5.0-beta1"]
                                         ; view/layout templates
                             [selmer              "1.0.9"]
                                         ; standardized application start/stop

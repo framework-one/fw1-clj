@@ -23,6 +23,7 @@
             [compojure.core :refer :all]
             [compojure.route :as route]
             [ring.middleware.defaults :as ring-md]
+            [ring.middleware.json :as ring-json]
             [selmer.filters]
             [selmer.parser]
             [selmer.util :refer [resource-path]]))
@@ -453,10 +454,12 @@
   and the fn passed in may modify those defaults."
   [modifier-fn]
   (fn [handler]
-    (ring-md/wrap-defaults handler (-> ring-md/site-defaults
+    (-> handler
+        (ring-md/wrap-defaults (-> ring-md/site-defaults
                                         ; you have to explicitly opt in to this:
-                                       (assoc-in [:security :anti-forgery] false)
-                                       modifier-fn))))
+                                   (assoc-in [:security :anti-forgery] false)
+                                   modifier-fn))
+        (ring-json/wrap-json-params))))
 
 (def ^:private default-options-access-control
   {:origin      "*"
