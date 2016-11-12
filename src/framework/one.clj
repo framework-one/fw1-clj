@@ -552,7 +552,8 @@
              (ANY "/"                  []     (fw1 (keyword section)))
              (ANY "/:item"             [item] (fw1 (keyword section item)))
              (ANY "/:item/:id{[0-9]+}" [item id :<< as-int]
-                  (fw1 (keyword section item))))))
+                  (fw1 (keyword section item))))
+    (route/not-found "Not Found")))
 
 ;; As of 2016/10/27, these are the two sets of options for the web servers that
 ;; we support -- note that only :port is common between the two of them.
