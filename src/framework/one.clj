@@ -519,7 +519,9 @@
               fw1     (fw1-router (keyword section item))]
           (fw1 (-> req
                    (assoc ::handling-exception true)
-                   (assoc :uri (str "/" section "/" item))
+                   (assoc :uri (str "/" section "/" item)
+                                        ; ensure error handled as GET
+                          :request-method :get)
                    (assoc-in [:params :exception] e))))))))
 
 (defn configure-router
