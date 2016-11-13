@@ -451,15 +451,17 @@
 (defn- default-middleware
   "The default Ring middleware we apply in FW/1. Returns a single
   composed piece of middleware. We start with Ring's site defaults
-  and the fn passed in may modify those defaults."
-  [modifier-fn]
+  and the modifier-fn passed in may modify those defaults. Then we
+  wrapper the handler in one last optional piece of middleware."
+  [modifier-fn wrapper-fn]
   (fn [handler]
     (-> handler
         (ring-md/wrap-defaults (-> ring-md/site-defaults
                                         ; you have to explicitly opt in to this:
                                    (assoc-in [:security :anti-forgery] false)
                                    modifier-fn))
-        (ring-json/wrap-json-params))))
+        (ring-json/wrap-json-params)
+        (wrapper-fn))))
 
 (def ^:private default-options-access-control
   {:origin      "*"
@@ -479,6 +481,8 @@
                   [(:default-section options) (:default-item options)])
                                         ; can modify site-defaults
          :middleware (default-middleware (or (:middleware-default-fn options)
+                                             identity)
+                                         (or (:middleware-wrapper-fn options)
                                              identity))
          :options-access-control (merge default-options-access-control
                                         (:options-access-control options))))
