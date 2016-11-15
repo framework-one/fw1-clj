@@ -55,9 +55,10 @@ The default handler behavior is equivalent to this:
     (route/resources "/")
     (ANY "/" [] (fw1))
     (context "/:section" [section]
-             (ANY "/"             []     (fw1 (keyword section)))
-             (ANY "/:item"        [item] (fw1 (keyword section item)))
-             (ANY "/:item/id/:id" [item] (fw1 (keyword section item))))))
+             (ANY "/"                  []     (fw1 (keyword section)))
+             (ANY "/:item"             [item] (fw1 (keyword section item)))
+             (ANY "/:item/:id{[0-9]+}" [item] (fw1 (keyword section item))))
+    (route/not-found "Not Found"))
 ```
 
 As above, the handler is initialized with an application Component. It obtains a router from FW/1 by providing configuration for FW/1. It then defines routes using Compojure, starting with a general `resources` route, followed by a few standard route patterns that map to `:section/item` keywords.
@@ -198,6 +199,7 @@ as a map (preferred) or as an arbitrary number of inline key / value pairs (lega
 * `:error` - the action - _"section.item"_ - to execute if an exception is thrown from the initial request, defaults to `:default-section` value and `"error"` _[untested]_.
 * `:home` - the _"section.item"_ pair used for the / URL, defaults to `:default-section` and `:default-item` values.
 * `:json-config` - specify formatting information for Cheshire's JSON `generate-string`, used in `render-json` (`:date-format`, `:ex`, `:key-fn`, etc).
+* `:lazy-load` - boolean, whether controllers should be lazily loaded. Default is false and all files in the `controllers` will be loaded just once at startup. When true, each controller is loaded when it is first requested, and if a request is a reload (see below) then the controller for that request is fully reloaded. `:lazy-load true` is useful for development, but should be turned off in production. _Note: in versions prior to 0.10.0, lazy loading was the default._
 * `:middleware-default-fn` - an optional function that will be applied to Ring's site defaults; note that by default we do **not** enable the XSRF Anti-Forgery middleware that is normally part of the site defaults since that requires session scope and client knowledge which is not appropriate for many uses of FW/1. Specify `#(assoc-in % [:security :anti-forgery] true)` here to opt into XSRF Anti-Forgery (you'll probably also want to change the `:session :store` from the in-memory default unless you have just a single server instance).
 * `:middleware-wrapper-fn` - an optional function that will be applied as the outermost piece of middleware, wrapping all of Ring's defaults (and the JSON parameters middleware).
 * `:options-access-control` - specify what an `OPTIONS` request should return (`:origin`, `:headers`, `:credentials`, `:max-age`).

@@ -383,6 +383,11 @@
          :headers {"Content-Type" (:type renderer)}
          :body    ((:body renderer) config data)}))))
 
+(defn section->controller
+  "Given a config and a section, return the controller namespace."
+  [config section]
+  (symbol (->clj (str (stem config ".") "controllers." section))))
+
 (defn require-controller
   "Given the request context and a controller namespace, require it.
   This is where we optionally force a reload of the Clojure code.
@@ -422,8 +427,8 @@
                (event :section section)
                (event :item    item)
                (event :config  config))
-        controller-ns (symbol (->clj (str (stem config ".") "controllers." section)))
-        _ (require-controller rc controller-ns)
+        controller-ns (section->controller config section)
+        _ (when (:lazy-load config) (require-controller rc controller-ns))
         rc (reduce (partial apply-controller config controller-ns)
                    rc
                    [:before "before" item "after" :after])]
@@ -528,11 +533,26 @@
                           :request-method :get)
                    (assoc-in [:params :exception] e))))))))
 
+(defn- wildcard-filter
+  "Given a regex, return a FilenameFilter that matches."
+  [re]
+  (reify java.io.FilenameFilter
+    (accept [_ dir name] (not (nil? (re-find re name))))))
+
+(defn directory-list
+  "Given a directory and a regex, return a sorted seq of matching filenames."
+  [dir re]
+  (sort (.list (io/file (io/resource dir)) (wildcard-filter re))))
+
 (defn configure-router
   "Given the application configuration, return a router function that takes a
   :section/item keyword and produces a function that handles a (Ring) request."
   [app-config]
   (let [config (build-config app-config)]
+    (when-not (:lazy-load config)
+      (doseq [c (directory-list (str (stem config "/") "controllers") #"\.clj")]
+        (require-controller {} (section->controller config
+                                                    (str/replace c ".clj" "")))))
     (fn fw1-router
       ([] (fw1-router (keyword (first  (:home config))
                                (second (:home config)))))

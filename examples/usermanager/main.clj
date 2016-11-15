@@ -33,6 +33,7 @@
   [application]
   (fw1/default-handler application
                        {:application-key "usermanager"
+                        :lazy-load       true ; so reload works in DEV mode
                         :home            "user.default"}))
 
 (defn new-system
