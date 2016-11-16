@@ -539,10 +539,39 @@
   (reify java.io.FilenameFilter
     (accept [_ dir name] (not (nil? (re-find re name))))))
 
+(defn jar-file-list
+  "Given a JAR file and a regex, return a seq of matching filenames."
+  [jar-file re]
+  (->> jar-file
+       (java.util.jar.JarFile.)
+       (.entries)
+       (iterator-seq)
+       (filter #(re-find re (.getName %)))
+       (map #(.getName %))))
+
+(defn path-file-list
+  "Given a class path element (probably a jar file) and a regex, return a
+  sequence of matching filenames."
+  [path re]
+  (when (str/ends-with? path ".jar")
+    (jar-file-list (io/file path) re)))
+
+(defn class-path-list
+  "Given a regex, look in all the class path files for matching files."
+  [re]
+  (mapcat #(path-file-list % re)
+          (seq (.split (System/getProperty "java.class.path")
+                       (System/getProperty "path.separator")))))
+
 (defn directory-list
   "Given a directory and a regex, return a sorted seq of matching filenames."
   [dir re]
-  (sort (.list (io/file (io/resource dir)) (wildcard-filter re))))
+  (let [r (io/resource dir)]
+    (if (= "file" (.getProtocol r))
+      (sort (.list (io/file r) (wildcard-filter re)))
+      (let [dir-re (re-pattern (str "^" dir "/.*" re))
+            skip   (inc (count dir))]
+        (sort (map #(subs % skip) (class-path-list dir-re)))))))
 
 (defn configure-router
   "Given the application configuration, return a router function that takes a
