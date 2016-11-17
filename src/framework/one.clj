@@ -668,9 +668,9 @@
                       http-server shutdown]  ; state
   component/Lifecycle
   (start [this]
-    (if (:http-server this)
+    (if http-server
       this
-      (let [start-server (case (:server this)
+      (let [start-server (case server
                            :jetty    (do
                                        (require '[ring.adapter.jetty :as jetty])
                                        (resolve 'jetty/run-jetty))
@@ -678,23 +678,23 @@
                                        (require '[org.httpkit.server :as kit])
                                        (resolve 'kit/run-server))
                            (throw (ex-info "Unsupported web server"
-                                           {:server (:server this)})))]
+                                           {:server server})))]
         (assoc this
-               :http-server (start-server ((:handler-fn this) application)
-                                          (cond-> {:port (:port this)}
-                                            (= :jetty (:server this))
+               :http-server (start-server (handler-fn application)
+                                          (cond-> {:port port}
+                                            (= :jetty server)
                                             (assoc :join? false)))
                :shutdown (promise)))))
   (stop  [this]
-    (if (:http-server this)
+    (if http-server
       (do
-        (case (:server this)
-          :jetty    (.stop (:http-server this))
-          :http-kit ((:http-server this))
+        (case server
+          :jetty    (.stop http-server)
+          :http-kit (http-server)
           (throw (ex-info "Unsupported web server"
-                          {:server (:server this)})))
+                          {:server server})))
         (assoc this :http-server nil)
-        (deliver (:shutdown this) true))
+        (deliver shutdown true))
       this)))
 
 (defn web-server
