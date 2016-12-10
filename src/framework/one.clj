@@ -472,7 +472,7 @@
   {:origin      "*"
    :headers     "Accept,Authorization,Content-Type"
    :credentials true
-   :max-age     1728000} )
+   :max-age     1728000})
 
 (defn- framework-defaults
   "Calculate configuration items based on supplied options or defaults."
