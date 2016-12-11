@@ -15,6 +15,7 @@
 (ns framework.one.response
   (:require [cheshire.core :as json]
             [clojure.data.xml :as xml]
+            [framework.one.request :as req]
             [ring.util.response :as resp]))
 
 (defn as-xml
@@ -64,9 +65,9 @@
   Prefer the convenience functions below, unless you are rendering
   custom data types."
   ([req as expr]
-   (render-data-response (:framework.one/config req) {:as as :data expr}))
+   (render-data-response (req/config req) {:as as :data expr}))
   ([req status as expr]
-   (render-data-response (:framework.one/config req) {:status status :as as :data expr})))
+   (render-data-response (req/config req) {:status status :as as :data expr})))
 
 (defn render-by
   "Given a rendering function, return a convenience function that

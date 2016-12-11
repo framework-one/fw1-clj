@@ -15,6 +15,11 @@
 (ns framework.one.request
   (:require [clojure.string :as str]))
 
+(defn config
+  "Given a request, return the configuration map."
+  [req]
+  (:framework.one/config req {}))
+
 (defn legacy?
   "Given a request, return true if it is a legacy FW/1 request context
   (rather than a pure Ring request)."

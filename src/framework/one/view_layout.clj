@@ -13,7 +13,8 @@
 ;; limitations under the License.
 
 (ns framework.one.view-layout
-  (:require [ring.util.response :as resp]
+  (:require [framework.one.request :as req]
+            [ring.util.response :as resp]
             [selmer.parser]
             [selmer.util :refer [resource-path]]))
 
@@ -110,10 +111,7 @@
   render a view and a cascade of layouts based on that :section/item."
   ([req]
    (if-let [action (:framework.one/view req)]
-     (render-page (:framework.one/config req)
-                  req
-                  (namespace action) (name action)
-                  false)
+     (render-page (req/config req) req (namespace action) (name action) false)
      req))
   ([config req section item exceptional?]
    ;; this is the legacy FW/1 render-page logic:
