@@ -13,20 +13,20 @@
 ;; limitations under the License.
 
 (ns framework.one
-  (:require [cheshire.core :as json]
-            [clojure.data.xml :as xml]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
             [clojure.stacktrace :as stacktrace]
             [clojure.string :as str]
-            [com.stuartsierra.component :as component]
             [compojure.coercions :refer :all]
             [compojure.core :refer :all]
             [compojure.route :as route]
+            [framework.one.request :as req]
+            [framework.one.response :as resp]
+            [framework.one.server :as server]
+            [framework.one.view-layout :as view]
             [ring.middleware.defaults :as ring-md]
             [ring.middleware.json :as ring-json]
             [selmer.filters]
-            [selmer.parser]
-            [selmer.util :refer [resource-path]]))
+            [selmer.parser]))
 
 ;; bridge in a couple of very useful Selmer symbols - this lets you use
 ;; fw1/add-tag! and fw1/add-filter! in your application, rather than reach
@@ -43,6 +43,8 @@
 ;; framework with the entry point to create Ring middleware being:
 ;; (fw1/default-handler) - returns Ring middleware for your application
 ;; See the bottom of this file for more details
+
+(declare ring)
 
 (defn abort
   "Abort the controller lifecycle."
@@ -116,8 +118,7 @@
   fact, contain additional characters -- you'll need to clean it
   yourself)."
   [rc]
-  (or (get-in rc [::ring :headers "x-forwarded-for"])
-      (get-in rc [::ring :remote-addr])))
+  (req/remote-addr (cond-> rc (req/legacy? rc) ring)))
 
 (defn render-data
   "Tell FW/1 to render this expression as the given type.
@@ -186,18 +187,7 @@
   ([rc] (get rc ::ring))
   ([rc req] (assoc rc ::ring req)))
 
-(defn servlet-request
-  "Return a fake HttpServletRequest that knows how to delegate to the rc."
-  [rc]
-  (proxy [javax.servlet.http.HttpServletRequest] []
-    (getContentType []
-      (get-in (ring rc) [:headers "content-type"]))
-    (getHeader [name]
-      (get-in (ring rc) [:headers (str/lower-case name)]))
-    (getMethod []
-      (-> (ring rc) :request-method name str/upper-case))
-    (getParameter [name]
-      (if-let [v (get rc (keyword name))] (str v) nil))))
+(def servlet-request req/servlet-request)
 
 (defn session
   "Get / set items in session scope:
@@ -226,41 +216,24 @@
   [path]
   (.replaceAll path "_" "-"))
 
-(defn ->fs
-  "Given a Clojure ns/symbol, return a filesystem path. This just follows the
-  convention that a - in a namespace/function becomes a _ in a filename."
-  [path]
-  (.replaceAll path "-" "_"))
+(def ->fs view/->fs)
 
 (defn as-map
   "Given the remaining expanded part of the route (after the section and item),
   return it as a map of parameters:
-  /foo/bar/baz/quux/fie/foe -> section foo, item bar, and {baz quux, fie foo}"
+  /foo/bar/baz/quux/fie/foe -> section foo, item bar, and {baz quux, fie foo}
+  NOTE: not used inside FW/1!"
   [route]
   (apply hash-map
          (if (even? (count route))
            route
            (concat route [""]))))
 
-(defn stem
-  "Given the application configuration and a separator, return the stem of a path
-  to the controllers, layouts, views or (Ring) resources. Returns an empty string
-  unless :application-key is provided in the configuration. The :application-key
-  may specify a single folder name relative to the classpath, in which to find
-  the application source code (this allows multiple FW/1 applications to be run
-  in the same classpath without conflict)."
-  [config sep]
-  (if-let [app (:application-key config)]
-    (str app sep)
-    ""))
+(def stem view/stem)
 
 ;; main FW/1 logic
 
-(defn get-view-path
-  "Given the application configuration, and the section and item, return the path to
-  the matching view (which may or may not exist)."
-  [config section item]
-  (->fs (str (stem config "/") "views/" section "/" item "." (:suffix config))))
+(def get-view-path view/get-view-path)
 
 (defn apply-controller
   "Given the application configuration, a controller namespace, the request context, and
@@ -276,112 +249,23 @@
       (if-let [f (item config)] (f rc) rc)
       (if-let [f (resolve (symbol (str controller-ns "/" (->clj item))))] (f rc) rc))))
 
-(defn get-layout-paths
-  "Given the application configuration, and the section and item, return the sequence of
-  applicable (and existing!) layouts."
-  [config section item]
-  (let [dot-html (str "." (:suffix config))]
-    (filter resource-path
-            (map ->fs [(str (stem config "/") "layouts/" section "/" item dot-html)
-                       (str (stem config "/") "layouts/" section dot-html)
-                       (str (stem config "/") "layouts/default" dot-html)]))))
+(def get-layout-paths view/get-layout-paths)
 
-(defn apply-view
-  "Given the application configuration, the request context, the sction and item, and a flag that
-  indicates whether we're already processing an exception, attempt to render the matching view."
-  [config rc section item exceptional?]
-  (let [view-path   (get-view-path config section item)
-        render-view (fn [] (selmer.parser/render-file view-path rc (:selmer-tags config)))]
-    (when (resource-path view-path)
-      (if exceptional?
-        ;; if we fail to render a view while processing an exception
-        ;; just treat the (error) view as not found so the original
-        ;; exception will be returned as a 500 error
-        (try (render-view) (catch Exception _))
-        (render-view)))))
+(def apply-view view/apply-view)
 
-(defn apply-layout
-  "Given the application configuration, the request context, a flag that indicates
-  whether we're already processing an exception, the view HTML so far and the
-  desired layout path, attempt to render that layout."
-  [config rc exceptional? html layout-path]
-  (let [render-layout (fn [] (selmer.parser/render-file layout-path
-                                                        (assoc rc :body [:safe html])
-                                                        (:selmer-tags config)))]
-    (if exceptional?
-      ;; if we fail to render a layout while processing an exception
-      ;; just treat the layout as not found so the original view will
-      ;; be returned unadorned
-      (try (render-layout) (catch Exception _ html))
-      (render-layout))))
+(def apply-layout view/apply-layout)
 
-(defn html-response
-  "Convenience method to return an HTML response (with a status and body)."
-  [status body]
-  {:status  status
-   :headers {"Content-Type" "text/html; charset=utf-8"}
-   :body    body})
+(def html-response view/html-response)
 
-(defn not-found
-  "Return a basic 404 Not Found page."
-  []
-  (html-response 404 "Not Found"))
+(def not-found view/not-found)
 
-(defn render-page
+(def render-page
   "Given the application configuration, the request context, the section and item, and a flag that
   indicates whether we're already processing an exception, try to render a view and a cascade of
   available layouts. The result will either be a successful HTML page or a 500 error."
-  [config rc section item exceptional?]
-  (if-let [view-render (apply-view config rc section item exceptional?)]
-    (let [layout-cascade (get-layout-paths config section item)
-          final-html (reduce (partial apply-layout config rc exceptional?) view-render layout-cascade)]
-      (html-response 200 final-html))
-    (if exceptional?
-      (html-response 500 (if-let [e (:exception rc)] (str e) "Unknown Error"))
-      (not-found))))
+  view/render-page)
 
-(defn as-xml
-  "Given an expression, return an XML string representation of it."
-  [expr]
-  (with-out-str (xml/emit (xml/sexp-as-element expr) *out*)))
-
-(def ^:private render-types
-  "Supported content types and renderers."
-  {:html     {:type "text/html; charset=utf-8"
-              :body (fn [config data] data)}
-   :json     {:type "application/json; charset=utf-8"
-              :body (fn [config data]
-                      (if-let [json-config (:json-config config)]
-                        (json/generate-string data json-config)
-                        (json/generate-string data)))}
-   :raw-json {:type "application/json; charset=utf-8"
-              :body (fn [config data] data)}
-   :text     {:type "text/plain; charset=utf-8"
-              :body (fn [config data] data)}
-   :xml      {:type "text/xml; charset=utf-8"
-              :body (fn [config data] (as-xml data))}})
-
-(defn render-data-response
-  "Given the format and data, return a success response with the appropriate
-  content type and the data rendered as the body."
-  [config {:keys [status as data]
-           :or   {status 200}}]
-  (let [full-render-types (merge render-types (:render-types config))]
-    (if (fn? as)
-      (let [content-type (as)]
-        {:status  status
-         :headers {"Content-Type" (cond (string? content-type)
-                                        content-type
-                                        (keyword? content-type)
-                                        (:type (full-render-types content-type))
-                                        :else
-                                        (throw (ex-info "Unsupported content-type type"
-                                                        {:type content-type})))}
-         :body    (as config data)})
-      (let [renderer (full-render-types as)]
-        {:status  status
-         :headers {"Content-Type" (:type renderer)}
-         :body    ((:body renderer) config data)}))))
+(def render-data-response resp/render-data-response)
 
 (defn section->controller
   "Given a config and a section, return the controller namespace."
@@ -608,99 +492,4 @@
                   (fw1 (keyword section item))))
     (route/not-found "Not Found")))
 
-;; As of 2016/10/27, these are the two sets of options for the web servers that
-;; we support -- note that only :port is common between the two of them.
-;; We probably ought to open up more of the server's options to the caller,
-;; perhaps replacing port with a full blown options map. At the very least we
-;; probably should support :ip / :host and maybe threads.
-
-(comment
-  "http-kit options:
-
-    :ip                 ; Which ip (if has many ips) to bind
-    :port               ; Which port listen incomming request
-    :thread             ; Http worker thread count
-    :queue-size         ; Max job queued before reject to project self
-    :max-body           ; Max http body: 8m
-    :max-ws             ; Max websocket message size
-    :max-line           ; Max http inital line length
-    :proxy-protocol     ; Proxy protocol e/o #{:disable :enable :optional}
-    :worker-name-prefix ; Woker thread name prefix
-    :worker-pool        ; ExecutorService to use for request-handling (:thread,
-                          :worker-name-prefix, :queue-size are ignored if set)
-")
-
-(comment
-  "Jetty options:
-
-  :configurator         - a function called with the Jetty Server instance
-  :async?               - if true, treat the handler as asynchronous
-  :port                 - the port to listen on (defaults to 80)
-  :host                 - the hostname to listen on
-  :join?                - blocks the thread until server ends (defaults to true)
-  :daemon?              - use daemon threads (defaults to false)
-  :http?                - listen on :port for HTTP traffic (defaults to true)
-  :ssl?                 - allow connections over HTTPS
-  :ssl-port             - the SSL port to listen on (defaults to 443, implies
-                          :ssl? is true)
-  :exclude-ciphers      - When :ssl? is true, exclude these cipher suites
-  :exclude-protocols    - When :ssl? is true, exclude these protocols
-  :keystore             - the keystore to use for SSL connections
-  :key-password         - the password to the keystore
-  :truststore           - a truststore to use for SSL connections
-  :trust-password       - the password to the truststore
-  :max-threads          - the maximum number of threads to use (default 50)
-  :min-threads          - the minimum number of threads to use (default 8)
-  :max-idle-time        - the maximum idle time in milliseconds for a connection
-                          (default 200000)
-  :client-auth          - SSL client certificate authenticate, may be set to
-                          :need,:want or :none (defaults to :none)
-  :send-date-header?    - add a date header to the response (default true)
-  :output-buffer-size   - the response body buffer size (default 32768)
-  :request-header-size  - the maximum size of a request header (default 8192)
-  :response-header-size - the maximum size of a response header (default 8192)
-  :send-server-version? - add Server header to HTTP response (default true)
-")
-
-;; lifecycle for the specified web server in which we run
-(defrecord WebServer [handler-fn server port ; parameters
-                      application            ; dependencies
-                      http-server shutdown]  ; state
-  component/Lifecycle
-  (start [this]
-    (if http-server
-      this
-      (let [start-server (case server
-                           :jetty    (do
-                                       (require '[ring.adapter.jetty :as jetty])
-                                       (resolve 'jetty/run-jetty))
-                           :http-kit (do
-                                       (require '[org.httpkit.server :as kit])
-                                       (resolve 'kit/run-server))
-                           (throw (ex-info "Unsupported web server"
-                                           {:server server})))]
-        (assoc this
-               :http-server (start-server (handler-fn application)
-                                          (cond-> {:port port}
-                                            (= :jetty server)
-                                            (assoc :join? false)))
-               :shutdown (promise)))))
-  (stop  [this]
-    (if http-server
-      (do
-        (case server
-          :jetty    (.stop http-server)
-          :http-kit (http-server)
-          (throw (ex-info "Unsupported web server"
-                          {:server server})))
-        (assoc this :http-server nil)
-        (deliver shutdown true))
-      this)))
-
-(defn web-server
-  "Return a WebServer component that depends on the application."
-  ([handler-fn port] (web-server handler-fn port :jetty))
-  ([handler-fn port server]
-   (component/using (map->WebServer {:handler-fn handler-fn
-                                     :port port :server server})
-                    [:application])))
+(def web-server server/web-server)
