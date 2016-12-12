@@ -47,3 +47,34 @@ There are several changes required of user code in order to migrate from the sta
 Conversion of controllers (and before/after handlers) could be made less painful by a switch in the middleware that optionally merged `:params` (and `:flash`) into the main Ring request, and by a predicate that could tell whether the argument was a FW/1 request context or a plain Ring request.
 
 The new namespaces will be `framework.one.middleware`, `framework.one.server`, `framework.one.request` (for the predicate mentioned above) and `framework.one.response`. The latter will contain the new `render-*` functions.
+
+# A Critical Look At FW/1
+
+Having now gone through the exercise of refactoring FW/1 into middleware and other components, it has become clear that the closer you get to "pure Ring", the less you need a framework at all. The before/after middleware I extracted is little more than a function you might write for each application:
+```
+(defn wrapper
+  [handler]
+  (fn [req]
+    (let [r (before req)]
+      (if (resp/response? r)
+        r
+        (after (handler r))))))
+```
+If you don't need either `before` or `after`, it gets simpler still.
+
+The view/layout middleware is slightly more valuable but only if you have a traditional HTML application with a number of different views and need more than a simple layout wrapper. Even then, it's really only two or three calls to `selmer.parser/render-file` which could be wrapped up in a simple function for convenience.
+
+The response side of things provides multiple rendering types but, in reality, you probably only need JSON and you can get that from `ring/ring-json` (`wrap-json-response`) which uses Cheshire, just like FW/1. FW/1 already uses this middleware for `wrap-json-params` to decode HTTP request bodies into the Ring `:params` map.
+
+On the request side, the smarter `remote-addr` function is available via standard Ring middleware already (`wrap-forwarded-remote-addr` if you add `:proxy true` to the defaults' config). I just didn't realize that until today!
+
+On the other hand, the `servlet-request` function that proxies an `HttpServletRequest` on top of a Ring request is not directly available: there's a private version of this inside `ring.util.test.servlet` but that doesn't implement `getParameter`. The latter could be provided as a very simple external library, with only `ring/ring-core` as a dependency for `ring.util.request` and `ring.util.response` utility functions (to properly handle `getContentType()` and `getHeader()`).
+
+The WebServer Component is a useful way to encapsulate starting a Ring server with an Application Component as a dependency. `danielsz/system` has something similar for Jetty and http-kit but without the Application Component dependency and without the ability to easily select the container at runtime (and that library depends on Schema which I wouldn't want to pull in).
+
+FW/1's default middleware stack is based on `ring/ring-defaults` and assumes a full application stack, which isn't really necessary for a REST API, but the minimal API stack doesn't include a number of things that actually are useful. Either way, building a middleware stack is easy enough with `ring/ring-defaults`.
+
+Worth keeping:
+* The `servlet-request` proxy function (which was written to support using the Apache OAuth2 library).
+* The `web-server` machinery and the middleware-wraps-application concept.
+* Perhaps an abstraction around the `ring-defaults` construction, that allows configuration tweaking?
