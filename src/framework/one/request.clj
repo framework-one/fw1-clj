@@ -22,22 +22,17 @@
 
 (defn legacy?
   "Given a request, return true if it is a legacy FW/1 request context
-  (rather than a pure Ring request)."
+  (rather than a pure Ring request).
+  Like the :legacy? option on the middeware, this is intended purely to aid
+  with conversion of older FW/1 applications."
   [req]
   (and (:framework.one/event req)
        (:framework.one/ring req)))
 
 (defn remote-addr
-  "Return the remote IP address for this request.
-  We attempt to deal with common load balancers that provide the
-  x-forwarded-for header and read that first, else fall back to
-  the value that Ring got from the application server.
-  Note that the result may be an IPv4 or IPv6 value (and may, in
-  fact, contain additional characters -- you'll need to clean it
-  yourself)."
+  "Return the remote IP address for this request."
   [req]
-  (or (get-in req [:headers "x-forwarded-for"])
-      (get-in req [:remote-addr])))
+  (get-in req [:remote-addr]))
 
 (defn servlet-request
   "Return a fake HttpServletRequest that knows how to delegate to the request."

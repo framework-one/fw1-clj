@@ -110,13 +110,7 @@
         (:reload-application-on-every-request config))))
 
 (defn remote-addr
-  "Return the remote IP address for this request.
-  We attempt to deal with common load balancers that provide the
-  x-forwarded-for header and read that first, else fall back to
-  the value that Ring got from the application server.
-  Note that the result may be an IPv4 or IPv6 value (and may, in
-  fact, contain additional characters -- you'll need to clean it
-  yourself)."
+  "Return the remote IP address for this request."
   [rc]
   (req/remote-addr (cond-> rc (req/legacy? rc) ring)))
 
@@ -340,17 +334,21 @@
 (defn- default-middleware
   "The default Ring middleware we apply in FW/1. Returns a single
   composed piece of middleware. We start with Ring's site defaults
-  and the modifier-fn passed in may modify those defaults. Then we
+  and the middleware-default-fn may modify those defaults. Then we
   wrapper the handler in one last optional piece of middleware."
-  [modifier-fn wrapper-fn]
-  (fn [handler]
-    (-> handler
-        (ring-md/wrap-defaults (-> ring-md/site-defaults
-                                        ; you have to explicitly opt in to this:
-                                   (assoc-in [:security :anti-forgery] false)
-                                   modifier-fn))
-        (ring-json/wrap-json-params)
-        (wrapper-fn))))
+  (let [{:keys [middleware-default-fn middleware-wrapper-fn]
+         :or   {middleware-default-fn identity
+                middleware-wrapper-fn identity}} config]
+    (fn [handler]
+      (-> handler
+          (ring-md/wrap-defaults (-> ring-md/site-defaults
+                                          ; you have to explicitly opt in to this:
+                                     (assoc-in [:security :anti-forgery] false)
+                                     (assoc-in [:proxy] true)
+                                     (middleware-default-fn)))
+          (ring-json/wrap-json-params)
+          (ring-json/wrap-json-response (:json-config config))
+          (middleware-wrapper-fn)))))
 
 (def ^:private default-options-access-control
   {:origin      "*"
@@ -369,10 +367,7 @@
                   (clojure.string/split (:home options) #"\.")
                   [(:default-section options) (:default-item options)])
                                         ; can modify site-defaults
-         :middleware (default-middleware (or (:middleware-default-fn options)
-                                             identity)
-                                         (or (:middleware-wrapper-fn options)
-                                             identity))
+         :middleware (default-middleware config)
          :options-access-control (merge default-options-access-control
                                         (:options-access-control options))))
 

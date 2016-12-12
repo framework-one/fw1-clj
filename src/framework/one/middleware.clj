@@ -14,16 +14,18 @@
 
 (ns framework.one.middleware
   (:require [framework.one.view-layout :as view]
+            [ring.middleware.cors :as ring-cors]
             [ring.middleware.defaults :as ring-md]
             [ring.middleware.json :as ring-json]
             [ring.util.response :as resp]))
 
 (defn wrap-before-after
   "Given a handler and configuration, return a new handler that executes the
-  specified :before and :after handlers around the original handler, stopping
-  if any of them return an Ring response.
+  specified :before and :after handlers around the original handler. If :before
+  returns a Ring response, do not call the handler, but always call :after.
   In addition, for ease of migration, optionally turn the Ring request into a
-  'request context' by blending :params and :flash into the main request."
+  'request context' by blending :params and :flash into the main request. This
+  is not the default because this is for conversion of older programs only!"
   [handler config]
   (let [{:keys [before after legacy?]} config]
     (fn [req]
@@ -39,7 +41,7 @@
               resp (cond-> req
                      (not (resp/response? req)) handler)]
           (cond-> resp
-            (and (not (resp/response? resp)) after) after))))))
+            after after))))))
 
 (defn wrap-view-layout
   "Given a handler and configuration, return a new handler that runs the
@@ -66,8 +68,10 @@
           (wrap-before-after config)
           (ring-md/wrap-defaults (-> ring-md/site-defaults
                                      (assoc-in [:security :anti-forgery] false)
+                                     (assoc-in [:proxy] true)
                                      (middleware-default-fn)))
           (ring-json/wrap-json-params)
+          (ring-json/wrap-json-response (:json-config config))
           (middleware-wrapper-fn)
-          ;; CORS should go here
+          ;; CORS should go outside routes!
           (wrap-view-layout config)))))

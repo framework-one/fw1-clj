@@ -13,6 +13,8 @@
 ;; limitations under the License.
 
 (ns framework.one.response
+  "FW/1's render-* functions for generating API responses. If you only need to
+  generate JSON responses, consider using ring/ring-json's wrap-json-response."
   (:require [cheshire.core :as json]
             [clojure.data.xml :as xml]
             [framework.one.request :as req]
@@ -29,9 +31,7 @@
               :body (fn [config data] data)}
    :json     {:type "application/json; charset=utf-8"
               :body (fn [config data]
-                      (if-let [json-config (:json-config config)]
-                        (json/generate-string data json-config)
-                        (json/generate-string data)))}
+                      (json/generate-string data (:json-config config)))}
    :raw-json {:type "application/json; charset=utf-8"
               :body (fn [config data] data)}
    :text     {:type "text/plain; charset=utf-8"
@@ -88,9 +88,11 @@
 (defn render-json
   "Render this expression as JSON."
   ([req expr]
-   (render-data req :json expr))
+   (render-json req 200 expr))
   ([req status expr]
-   (render-data req status :json expr)))
+   ;; relies on wrap-json-response to convert to JSON
+   (-> (resp/response expr)
+       (resp/status status))))
 
 (defn render-raw-json
   "Render this string as raw (encoded) JSON."

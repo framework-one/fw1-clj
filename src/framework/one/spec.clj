@@ -13,6 +13,7 @@
 ;; limitations under the License.
 
 (ns framework.one.spec
+  "Legacy specification for original FW/1 request context etc."
   (:require [clojure.spec :as s]))
 
 (alias 'fw1 (create-ns 'framework.one))

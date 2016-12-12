@@ -111,10 +111,12 @@
   render a view and a cascade of layouts based on that :section/item."
   ([req]
    (if-let [action (:framework.one/view req)]
-     (render-page (req/config req) req (namespace action) (name action) false)
+     (let [params (if (:framework.one/unrolled req) req (:params req))]
+       (render-page (req/config req) params (namespace action) (name action) false))
      req))
   ([config req section item exceptional?]
-   ;; this is the legacy FW/1 render-page logic:
+   ;; this is the legacy FW/1 render-page logic, reused -- exceptional? will
+   ;; never be true in the new FW/1 middleware
    (if-let [view-render (apply-view config req section item exceptional?)]
      (let [layout-cascade (get-layout-paths config section item)
            final-html (reduce (partial apply-layout config req exceptional?) view-render layout-cascade)]

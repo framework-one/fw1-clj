@@ -105,7 +105,9 @@
       this)))
 
 (defn web-server
-  "Return a WebServer component that depends on the application."
+  "Return a WebServer component that depends on the application.
+  The handler-fn is a function that accepts the application (Component) and
+  returns a fully configured Ring handler (with middeware)."
   ([handler-fn port] (web-server handler-fn port :jetty))
   ([handler-fn port server]
    (component/using (map->WebServer {:handler-fn handler-fn
