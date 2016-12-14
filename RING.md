@@ -62,8 +62,16 @@ Having now gone through the exercise of refactoring FW/1 into middleware and oth
 ```
 If you don't need either `before` or `after`, it gets simpler still.
 
-The view/layout middleware is slightly more valuable but only if you have a traditional HTML application with a number of different views and need more than a simple layout wrapper. Even then, it's really only two or three calls to `selmer.parser/render-file` which could be wrapped up in a simple function for convenience.
-
+The view/layout middleware is slightly more valuable but only if you have a traditional HTML application with a number of different views and need more than a simple layout wrapper. Even then, it's really only two or three calls to `selmer.parser/render-file` which could be wrapped up in a simple function for convenience. Here's an example of an `after` function that renders a `login.html` page, wrapped in a `layout.html` layout:
+```
+(defn after
+  "Given a request, loaded with data, render the page as the response."
+  [req]
+  (let [html (html/render-file "login.html" req)]
+    (-> (resp/response (html/render-file "layout.html"
+                                         (assoc-in req [:params :body] [:safe html])))
+        (resp/content-type "text/html"))))
+```
 The response side of things provides multiple rendering types but, in reality, you probably only need JSON and you can get that from `ring/ring-json` (`wrap-json-response`) which uses Cheshire, just like FW/1. FW/1 already uses this middleware for `wrap-json-params` to decode HTTP request bodies into the Ring `:params` map.
 
 On the request side, the smarter `remote-addr` function is available via standard Ring middleware already (`wrap-forwarded-remote-addr` if you add `:proxy true` to the defaults' config). I just didn't realize that until today!
