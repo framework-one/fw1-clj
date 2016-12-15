@@ -1,7 +1,20 @@
 FW/1 in Clojure [![Join the chat at https://gitter.im/framework-one/fw1-clj](https://badges.gitter.im/framework-one/fw1-clj.svg)](https://gitter.im/framework-one/fw1-clj?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 ===============
 
-This is based on a port from CFML to Clojure of Framework One (FW/1). Most concepts carry over but, like Clojure itself, the emphasis is on simplicity.
+This was an interesting thought experiment based on my initial thinking that Clojure needed a very simple, convention-based web framework, like Framework One (FW/1) from the CFML world. I thought it would be a gentle on-ramp for CFML developers who were interested in trying Clojure -- and that part was successful in that it piqued the interest of a number of them to build toy applications with FW/1 for Clojure.
+
+At World Singles, we started using FW/1 for Clojure in 2016, as a migration path from our FW/1 for CFML applications. For those applications, I found I either needed explicit Compojure routes (for our REST APIs) or a more flexible Ring middleware stack, or both. The convention-based views and cascading layouts just weren't useful in the real world programs we were building. In December 2016, I started to [think about refactoring FW/1 to more standard Ring middleware](https://github.com/framework-one/fw1-clj/blob/master/RING.md) and as I started the actual refactoring, I realized that FW/1 really added very little in terms of convenience but a fair bit in terms of non-standard behavior (controllers were not quite regular Ring handlers, CORS handling was custom, non-HTML responses were complex and custom, and HTML responses were full of magic).
+
+By mimicking FW/1 for CFML, I'd lost a lot of the simplicity and elegance that web applications in Clojure can exhibit. That's why I'm sunsetting FW/1 for Clojure before it gets any traction. "So long, and thanks for all the fish!", as they say.
+
+I've converted the [user manager example](https://github.com/framework-one/fw1-clj/tree/master/examples/usermanager) to no longer need FW/1 at all. Yes, there's a little bit more boilerplate in `main.clj` around creating and starting the web server, and it could easily be streamlined if you only wanted to use Jetty (or only http-kit). Yes, you now have to specify the routes explicitly instead of the magic that was there before -- but in any reasonable web application you will want that level of control over your "public API" (the URLs) and you will want to keep it decoupled from your handlers. Yes, you have to deal with the views and layouts yourself, but as you can see in [the `usermanager` controller's `after` function](https://github.com/framework-one/fw1-clj/blob/master/examples/usermanager/controllers/user.clj#L17-L24), it's just a few lines of simple code to deal with this. With those small trade-offs, you get the benefits of standard Ring handlers, composable middleware, and the freedom to choose how you start/stop your applications and how you deal with HTML templates. You can swap out Compojure for Bidi or something else, you can swap out Selmer for something else. If you're building a REST API, you can drop Selmer and rely on ring-json to turn your responses into JSON for you. The world becomes your Clojure-powered oyster!
+
+Porting FW/1 from CFML to Clojure taught me a lot about the Ring ecosystem and also about Clojure's overall preference for simplicity, elegance, and composability. Time to move on.
+
+The Original README
+===================
+
+This was based on a port from CFML to Clojure of Framework One (FW/1). Most concepts carry over but, like Clojure itself, the emphasis is on simplicity.
 
 FW/1 in Clojure is based on [Ring](https://github.com/ring-clojure/ring), [Compojure](https://github.com/weavejester/compojure), and [Selmer](https://github.com/yogthos/Selmer).
 FW/1 is a lightweight, (partially) convention-based MVC framework.

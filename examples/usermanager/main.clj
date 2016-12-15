@@ -73,20 +73,20 @@
 (defn my-handler
   "Given the application component, return middleware for routing."
   [application]
-  (-> (let-routes [wrap (middleware-stack application #'my-middleware)]
-        (GET  "/"                        []              (wrap #'user-ctl/default))
-        ;; horrible: application should POST to this URL!
-        (GET  "/user/delete/:id{[0-9]+}" [id :<< as-int] (wrap #'user-ctl/delete-by-id))
-        ;; add a new user:
-        (GET  "/user/form"               []              (wrap #'user-ctl/edit))
-        ;; edit an existing user:
-        (GET  "/user/form/:id{[0-9]+}"   [id :<< as-int] (wrap #'user-ctl/edit))
-        (GET  "/user/list"               []              (wrap #'user-ctl/get-users))
-        (POST "/user/save"               []              (wrap #'user-ctl/save))
-        ;; this just resets the change tracker but really should be a POST :)
-        (GET  "/reset"                   []              (wrap #'user-ctl/reset-changes))
-        (route/resources "/")
-        (route/not-found "Not Found"))))
+  (let-routes [wrap (middleware-stack application #'my-middleware)]
+    (GET  "/"                        []              (wrap #'user-ctl/default))
+    ;; horrible: application should POST to this URL!
+    (GET  "/user/delete/:id{[0-9]+}" [id :<< as-int] (wrap #'user-ctl/delete-by-id))
+    ;; add a new user:
+    (GET  "/user/form"               []              (wrap #'user-ctl/edit))
+    ;; edit an existing user:
+    (GET  "/user/form/:id{[0-9]+}"   [id :<< as-int] (wrap #'user-ctl/edit))
+    (GET  "/user/list"               []              (wrap #'user-ctl/get-users))
+    (POST "/user/save"               []              (wrap #'user-ctl/save))
+    ;; this just resets the change tracker but really should be a POST :)
+    (GET  "/reset"                   []              (wrap #'user-ctl/reset-changes))
+    (route/resources "/")
+    (route/not-found "Not Found")))
 
 ;; Standard web server component -- knows how to stop and start your chosen
 ;; web server... supports both jetty and http-kit as it stands:
