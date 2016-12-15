@@ -336,19 +336,19 @@
   composed piece of middleware. We start with Ring's site defaults
   and the middleware-default-fn may modify those defaults. Then we
   wrapper the handler in one last optional piece of middleware."
-  (let [{:keys [middleware-default-fn middleware-wrapper-fn]
+  [{:keys [middleware-default-fn middleware-wrapper-fn]
          :or   {middleware-default-fn identity
                 middleware-wrapper-fn identity}} config]
-    (fn [handler]
-      (-> handler
-          (ring-md/wrap-defaults (-> ring-md/site-defaults
+  (fn [handler]
+    (-> handler
+        (ring-md/wrap-defaults (-> ring-md/site-defaults
                                           ; you have to explicitly opt in to this:
-                                     (assoc-in [:security :anti-forgery] false)
-                                     (assoc-in [:proxy] true)
-                                     (middleware-default-fn)))
-          (ring-json/wrap-json-params)
-          (ring-json/wrap-json-response (:json-config config))
-          (middleware-wrapper-fn)))))
+                                   (assoc-in [:security :anti-forgery] false)
+                                   (assoc-in [:proxy] true)
+                                   (middleware-default-fn)))
+        (ring-json/wrap-json-params)
+        (ring-json/wrap-json-response (:json-config config))
+        (middleware-wrapper-fn))))
 
 (def ^:private default-options-access-control
   {:origin      "*"
@@ -367,7 +367,7 @@
                   (clojure.string/split (:home options) #"\.")
                   [(:default-section options) (:default-item options)])
                                         ; can modify site-defaults
-         :middleware (default-middleware config)
+         :middleware (default-middleware options)
          :options-access-control (merge default-options-access-control
                                         (:options-access-control options))))
 
