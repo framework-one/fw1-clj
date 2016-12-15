@@ -1,43 +1,64 @@
 (ns usermanager.controllers.user
-  (:refer-clojure :exclude [list])
-  (:require [framework.one :refer :all]
-            [usermanager.model.user-manager :refer :all]))
+  (:require [ring.util.response :as resp]
+            [selmer.parser :as tmpl]
+            [usermanager.model.user-manager :as model]))
 
 (def ^:private changes
   "Count the number of changes (since the last reload)."
   (atom 0))
 
-(defn after [rc]
-  (assoc rc :changes @changes))
+(defn before [req]
+  ;; whatever needs doing at the start of the request
+  req)
 
-(defn default [rc]
-  (assoc rc
-         :message        (str "Welcome to the Framework One User Manager application demo! "
-                              "You are running FW/1 version " (:version (event rc :config)) ".")
-         :reload-message (when (reload? rc)
-                           "The framework cache (and application scope) have been reset.")))
+(defn after [req]
+  (if (resp/response? req)
+    req
+    ;; no response so far, render an HTML template
+    (let [data (assoc (:params req) :changes @changes)
+          base (-> req :application/component :config :resources)
+          view (:application/view req "default")
+          html (tmpl/render-file (str base "/views/user/" view ".html") data)]
+      (-> (resp/response (tmpl/render-file (str base "/layouts/default.html")
+                                           (assoc data :body [:safe html])))
+          (resp/content-type "text/html")))))
 
-(defn delete [rc]
+(defn reset-changes [req]
+  (reset! changes 0)
+  (assoc-in req [:params :message] "The change tracker has been reset."))
+
+(defn default [req]
+  (assoc-in req [:params :message]
+                (str "Welcome to the User Manager application demo! "
+                     "This uses just Compojure, Ring, and Selmer.")))
+
+(defn delete-by-id [req]
   (swap! changes inc)
-  (delete-user-by-id (:id rc))
-  (redirect rc "/user/list"))
+  (model/delete-user-by-id (get-in req [:params :id]))
+  (resp/redirect "/user/list"))
 
-(defn form [rc]
-  (let [user (get-user-by-id (:id rc))]
-    (assoc rc :user user
-           :departments (get-departments))))
+(defn edit [req]
+  (let [user (model/get-user-by-id (get-in req [:params :id]))]
+    (-> req
+        (update :params assoc
+                :user user
+                :departments (model/get-departments))
+        (assoc :application/view "form"))))
 
-(defn list [rc]
-  (let [users (get-users)
+(defn get-users [req]
+  (let [users (model/get-users)
         add-department (fn [u]
                          (assoc u :department
-                                (:name (get-department-by-id (:department-id u)))))]
-    (assoc rc :users (map add-department users))))
+                                (:name (model/get-department-by-id (:department-id u)))))]
+    (-> req
+        (assoc-in [:params :users] (map add-department users))
+        (assoc :application/view "list"))))
 
-(defn save [rc]
+(defn save [req]
   (swap! changes inc)
-  (let [{:keys [id first-name last-name email department-id]} rc]
-    ;; note: we still need to-long here since id is a form variable:
-    (save-user {:id (to-long id) :first-name first-name :last-name last-name
-                :email email :department-id (to-long department-id)}))
-  (redirect rc "/user/list"))
+  (let [{:keys [id first-name last-name email department-id]} (:params req)]
+    ;; note: need to convert form variables from a string to a number:
+    (model/save-user {:id (when (seq id) (Long/parseLong id))
+                      :first-name first-name :last-name last-name
+                      :email email :department-id (Long/parseLong department-id)}))
+  (resp/redirect "/user/list"))
